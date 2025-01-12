@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Michigan Counties Map</title>
+    <style>
+        .county {
+            fill: #f0f0f0;
+            stroke: #ffffff;
+            stroke-width: 0.5px;
+            transition: stroke 0.3s, stroke-width 0.3s;
+        }
+        .county-hover {
+            stroke: #000000;
+            stroke-width: 2px;
+            z-index: 10;
+        }
+
+        body {
+            overflow-y: hidden; /* Hide vertical scrollbar */
+            overflow-x: hidden; /* Hide horizontal scrollbar */
+        }
+        .state {
+            fill: none;
+            stroke: #000000;
+            stroke-width: 1px;
+        }
+        .tooltip {
+            position: absolute;
+            background-color: white;
+            border: 1px solid #ddd;
+            padding: 10px;
+            pointer-events: none;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            opacity: 0;
+        }
+        .tooltip-category {
+            color: #888;
+            font-weight: bold;
+        }
+        .tooltip-value {
+            color: #333;
+            font-weight: bold;
+        }
+    </style>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://d3js.org/topojson.v3.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Turf.js/6.5.0/turf.min.js"></script>
+    <script src="tableau.extensions.1.latest.js"></script>
+</head>
+<body>
+<svg width="100vw" height="100vh">
+    <defs>
+        <clipPath id="stateClip">
+            <path id="state-border"></path>
+        </clipPath>
+    </defs>
+    <g id="mapGroup" clip-path="url(#stateClip)"></g>
+</svg>
+<div id="tooltip" class="tooltip"></div>
+<script>
+
+    const svgConst = document.querySelector('svg');
+
+    // Get the bounding rectangle of the SVG
+    const svgRect = svgConst.getBoundingClientRect();
+
+    // Set the width and height constants
+    const width = svgRect.width;
+    const height = svgRect.height;
+
+    /**
+     * SVG element for the map visualization.
+     * @type {void | Intl.LDMLPluralRule}
+     */
+    const svg = d3.select("svg");
+
+    /**
+     * Group element containing the map's components.
+     * @type {void | Intl.LDMLPluralRule}
+     */
+    const mapGroup = svg.select("#mapGroup");
+
+    /**
+     * Tooltip element for displaying information on hover.
+     * @type {void | Intl.LDMLPluralRule}
+     */
+    const tooltip = d3.select("#tooltip");
+
+    /**
+     * Mercator type projection for the map
+     * @type {*|void}
+     */
+    const projection = d3.geoMercator()
+        .scale(4000)
+        .center([-84.506, 44.182])
+        .translate([width / 2, height / 2]);
+
+    /**
+     * Path generator for creating SVG paths from GeoJSON data.
+     */
+    const path = d3.geoPath().projection(projection);
+
+    /**
+     * Defines zoom behavior for the map.
+     */
+    const zoom = d3.zoom()
+        .scaleExtent([1, 8])
+        .on("zoom", zoomed);
+
+    // Takes a page of data, which has a list of DataValues (dataTablePage.data)
+    // and a list of columns and puts the data in a list where each entry is an
+    // object that maps from field names to DataValues
+    // (example of a row being: { SUM(Sales): ..., SUM(Profit): ..., Ship Mode: ..., })
+    function convertToListOfNamedRows (dataTablePage) {
+        const rows = [];
+        const columns = dataTablePage.columns;
+        const data = dataTablePage.data;
+        for (let i = data.length - 1; i >= 0; --i) {
+            const row = {};
+            for (let j = 0; j < columns.length; ++j) {
+                row[columns[j].fieldName] = data[i][columns[j].index];
+            }
+            rows.push(row);
+        }
+        return rows;
+    }
+
+    // Uses getVisualSpecificationAsync to build a map of encoding identifiers (specified in the .trex file)
+    // to fields that the user has placed on the encoding's shelf.
+    // Only encodings that have fields dropped on them will be part of the encodingMap.
+    async function getEncodingMap(worksheet) {
+        const visualSpec = await worksheet.getVisualSpecificationAsync();
+
+        const encodingMap = {};
+
+        if (visualSpec.activeMarksSpecificationIndex < 0) return encodingMap;
+
+        const marksCard =
+            visualSpec.marksSpecifications[visualSpec.activeMarksSpecificationIndex];
+        for (const encoding of marksCard.encodings) { encodingMap[encoding.id] = encoding.field; }
+
+        return encodingMap;
+    }
+
+    // Gets each page of data in the summary data and returns a list of rows of data
+    // associated with field names.
+    async function getSummaryDataTable(worksheet) {
+        let rows = [];
+
+        // Fetch the summary data using the DataTableReader
+        const dataTableReader = await worksheet.getSummaryDataReaderAsync(
+            undefined,
+            { ignoreSelection: true }
+        );
+        for (
+            let currentPage = 0;
+            currentPage < dataTableReader.pageCount;
+            currentPage++
+        ) {
+            const dataTablePage = await dataTableReader.getPageAsync(currentPage);
+            rows = rows.concat(convertToListOfNamedRows(dataTablePage));
+        }
+        await dataTableReader.releaseAsync();
+
+        return rows;
+    }
+
+    // Initializes the map
+    function initializeMap() {
+
+        /**
+         * Applies zoom behavior to the SVG element
+         */
+        svg.call(zoom);
+
+        /**
+         * Function to handle zoom events.
+         * @param event - The zoom event object.
+         */
+        d3.select("body").on("keydown", function (event) {
+            if (event.key === "Escape") {
+                reset();
+            }
+        });
+    }
+
+    // Load and process data
+    function loadData() {
+        /**
+         * Load and process the JSON file containing geographical data.
+         * This asynchronous function fetches the 'cb_201.json' file, containing
+         * TopoJSON data for Michigan counties and state boundaries.
+         */
+
+        d3.json("cb_201.json").then(data => {
+
+            /**
+             * GeoJSON features representing Michigan counties.
+             */
+            const michiganCounties = topojson.feature(data, data.objects.cb_2015_us_county_20m)
+                .features.filter(d => d.properties.STATEFP === "26");
+
+            /**
+             * GeoJSON feature representing the state of Michigan as a whole.
+             */
+            const michiganState = topojson.feature(data, data.objects.cb_2018_us_state_20m)
+                .features.find(d => d.properties.STATEFP === "26");
+
+            renderMap(michiganCounties, michiganState);
+
+            // Leads to lat longs and the param nonsense
+            processCircleData(michiganState);
+        });
+    }
+
+    /**
+     * Calls functions that render the map
+     */
+    function renderMap(michiganCounties, michiganState) {
+        renderCounties(michiganCounties);
+        renderStateBorder(michiganState);
+    }
+
+    /**
+     * Renders county borders
+     */
+    function renderCounties(michiganCounties) {
+        mapGroup.selectAll("*").remove();
+
+        mapGroup.selectAll(".county")
+            .data(michiganCounties)
+            .enter().append("path")
+            .attr("class", "county")
+            .attr("d", path)
+            .attr("id", d => `county-${d.properties.GEOID}`)
+            .on("click", clickedCounty)
+            .on("mouseover", function (event, d) {
+                d3.select(this)
+                    .classed("county-hover", true)
+                    .raise();
+                d3.select(".state").raise();
+                d3.selectAll(".circle").raise();
+                d3.selectAll(".center-dot").raise();
+                showTooltip(event, d);
+            })
+            .on("mousemove", function (event, d) {
+                showTooltip(event, d);
+            })
+            .on("mouseout", function (event, d) {
+                d3.select(this)
+                    .classed("county-hover", false);
+                hideTooltip();
+            });
+    }
+
+    /**
+     * Selects and updates the existing state border element.
+     */
+    function renderStateBorder(michiganState) {
+        svg.select("#state-border")
+            .datum(michiganState)
+            .attr("d", path);
+
+        mapGroup.append("path")
+            .datum(michiganState)
+            .attr("class", "state")
+            .attr("d", path)
+            .attr("id", `state-${michiganState.properties.GEOID}`);
+    }
+
+    /**
+     * Reloads and rerenders map nad calculations
+     */
+    async function refreshData(circleGeoJSONs, radiusInKm, michiganState, worksheet) {
+        try {
+            let coolIndex
+            const [summaryData, encodingMap] = await Promise.all([
+                getSummaryDataTable(worksheet),
+                getEncodingMap(worksheet)
+            ]);
+
+            console.log(summaryData, encodingMap);
+
+
+            console.log(encodingMap.x)
+            console.log(encodingMap.y)
+            console.log(encodingMap.x['name'])
+            console.log(encodingMap.y['name'])
+
+            const latitudeName = encodingMap.x['name'];
+            const longitudeName = encodingMap.y['name'];
+            const cName = encodingMap.c['name'];
+
+            const circleCoordinates = summaryData.map(row => ({
+                lat: row[latitudeName]._value,
+                lon: row[longitudeName]._value,
+                cool: row[cName]._value
+            }));
+
+            console.log(circleCoordinates);
+
+            const validCircleCoordinates = circleCoordinates.filter(coord =>
+                typeof coord.lat === 'number' && typeof coord.lon === 'number'
+            );
+
+            const circleGeoJSONs = validCircleCoordinates.map(circle =>
+                createCircleGeoJSON(circle.lat, circle.lon, radiusInKm)
+            );
+
+            const filteredCircleGeoJSONs = circleGeoJSONs.filter((_, index) =>
+                validCircleCoordinates[index].cool === true
+            );
+
+            renderCircles(validCircleCoordinates, radiusInKm);
+            calculateAreas(filteredCircleGeoJSONs, michiganState);
+
+        } catch (error) {
+            console.error("Error in refreshData:", error);
+        }
+    }
+
+
+    /**
+     * Processes Circle data
+     */
+    function processCircleData(michiganState) {
+
+        /**
+         * Array of dictionaries with circle coordinates
+         */
+        let circleCoordinates = [
+            { lat: 0, lon: 0 }
+        ];
+
+        /**
+         * Converts 20 miles to Kilometers
+         * @type {number}
+         */
+        const radiusInKm = 20 * 1.60934;
+        const circleGeoJSONs = circleCoordinates.map(circle => createCircleGeoJSON(circle.lat, circle.lon, radiusInKm));
+        console.log("mid", circleGeoJSONs)
+
+        // Leads to params
+        console.log("Leading to params")
+
+
+        let worksheet = tableau.extensions.worksheetContent.worksheet;
+        refreshData(
+            circleGeoJSONs,
+            radiusInKm,
+            michiganState,
+            worksheet
+        )
+
+
+        //renderCircles(circleCoordinates, radiusInKm);
+    }
+
+    /**
+     * Calculates the total covered area of the circles
+     */
+    function calculateAreas(circleGeoJSONs, michiganBoundary) {
+        let areaOutsideMap = 0;
+
+        /**
+         * Array to store info about intersections.
+         */
+        let circleIntersectionsInfo = [];
+
+        /**
+         * Step 1: Union all circles to get a single object representing the total area covered by circles.
+         */
+        let unionedCircles = circleGeoJSONs.reduce((acc, current, index) => {
+            if (!acc) return current;
+            return turf.union(acc, current);
+        }, null);
+
+
+        /**
+         * Step 2: Calculate the total area of all circles (including overlaps)
+         */
+        let totalCircleArea = unionedCircles ? turf.area(unionedCircles) / 1e6 : 0;
+
+        /**
+         * Step 3: Calculate the area of the unioned circles that extends beyond the map (state boundary)
+         */
+        const areaOfUnionedCirclesOutsideMap = turf.difference(unionedCircles, michiganBoundary);
+        if (areaOfUnionedCirclesOutsideMap) {
+            areaOutsideMap = turf.area(areaOfUnionedCirclesOutsideMap) / 1e6;
+        }
+
+        /**
+         * Step 4: Calculate the non-overlapping area by subtracting the area outside the map
+         */
+        const finalNonOverlappingArea = totalCircleArea - areaOutsideMap;
+
+        /**
+         * Output detailed intersection information
+         */
+        circleGeoJSONs.forEach((circle, i) => {
+            const area = turf.area(circle) / 1e6;
+            console.log(`Circle ${i + 1}: Initial area: ${area.toFixed(2)} km²`);
+            circleGeoJSONs.slice(i + 1).forEach((otherCircle, j) => {
+                const intersection = turf.intersect(circle, otherCircle);
+                if (intersection) {
+                    const intersectionArea = turf.area(intersection) / 1e6;
+                    circleIntersectionsInfo.push({ circle1: i + 1, circle2: j + i + 2, area: intersectionArea });
+                    console.log(`Intersection between circle ${i + 1} and circle ${j + i + 2}: ${intersectionArea.toFixed(2)} km²`);
+                }
+            });
+        });
+
+        /**
+         * Output total area taken by intersections before unioning
+         */
+        const totalIntersectionAreaBeforeUnioning = circleIntersectionsInfo.reduce((acc, intersectionInfo) => acc + intersectionInfo.area, 0);
+        console.log('Total area taken by circle intersections (before unioning):', totalIntersectionAreaBeforeUnioning.toFixed(2), 'km²');
+
+        /**
+         * Output results
+         */
+        console.log('Total area of all circles (before subtracting overlaps and areas outside map):', totalCircleArea.toFixed(2), 'km²');
+        console.log('Total unioned overlap area:', totalIntersectionAreaBeforeUnioning.toFixed(2), 'km²');
+        console.log('Total area outside map:', areaOutsideMap.toFixed(2), 'km²');
+        console.log('Total non-overlapping area inside the map (after subtracting overlaps and areas outside map):', finalNonOverlappingArea.toFixed(2), 'km²');
+
+        /**
+         * Output detailed intersection information
+         */
+        console.log('Detailed intersection information:');
+        console.log('Area outside the map for all unioned circles:', areaOutsideMap.toFixed(2), 'km²');
+        circleIntersectionsInfo.forEach(intersectionInfo => {
+            console.log(`Circle ${intersectionInfo.circle1} intersects with Circle ${intersectionInfo.circle2}, Intersection area: ${intersectionInfo.area.toFixed(2)} km²`);
+        });
+
+        /**
+         * Log final result: the area covered by circles after subtracting overlaps and areas outside the map
+         */
+        console.log('Final area covered by circles after subtracting overlaps and areas outside the map:', finalNonOverlappingArea.toFixed(2), 'km²');
+
+        updateTableauParameters(totalCircleArea, totalIntersectionAreaBeforeUnioning, areaOutsideMap, finalNonOverlappingArea);
+    }
+
+    /**
+     * Renders the circle
+     */
+    function renderCircles(circleCoordinates, radiusInKm) {
+        const hiddenIndices = new Set();
+
+        // Check distances and mark circles for hiding if within 5 miles
+        circleCoordinates.forEach((circleA, indexA) => {
+            if (hiddenIndices.has(indexA)) return; // Skip if already hidden
+
+            circleCoordinates.forEach((circleB, indexB) => {
+                if (indexA === indexB || hiddenIndices.has(indexB)) return;
+
+                const from = turf.point([circleA.lon, circleA.lat]);
+                const to = turf.point([circleB.lon, circleB.lat]);
+                const distance = turf.distance(from, to, { units: 'miles' });
+
+                if (distance <= 5) {
+                    hiddenIndices.add(indexB); // Hide one of the circles
+                }
+            });
+        });
+
+        mapGroup.selectAll(".circle")
+            .data(circleCoordinates)
+            .enter()
+            .append("path")
+            .attr("class", "circle")
+            .attr("d", d => circlePath(d.lat, d.lon, radiusInKm, projection))
+            .attr("fill", d => {
+                if (d.cool === true) return "blue";
+                if (d.cool === false) return "transparent";
+                return "grey";
+            })
+            .style("opacity", (d, i) => hiddenIndices.has(i) ? 0 : 0.5) // Set opacity to 0 for hidden circles
+            .attr("stroke", d => {
+                if (d.cool === true) return "black";
+                if (d.cool === false) return "transparent";
+                return "grey";
+            })
+            .attr("stroke-width", 0.5)
+            .style("pointer-events", "none");
+
+        mapGroup.selectAll(".center-dot")
+            .data(circleCoordinates)
+            .enter()
+            .append("circle")
+            .attr("class", "center-dot")
+            .attr("cx", d => projection([d.lon, d.lat])[0])
+            .attr("cy", d => projection([d.lon, d.lat])[1])
+            .attr("r", 3)
+            .attr("fill", d => {
+                if (d.cool === true) return "blue";
+                if (d.cool === false) return "transparent";
+                return "grey"; // Default color if cool is not found
+            })
+            .style("opacity", (d, i) => hiddenIndices.has(i) ? 0 : 0.5) // Set opacity to 0 for hidden circles
+            .attr("stroke", "black")
+            .attr("stroke-width", 0.5);
+    }
+
+    /**
+     * Initializes extension and sets parameters to values from the calculations
+     */
+    function updateTableauParameters(totalCircleArea, totalIntersectionAreaBeforeUnioning, areaOutsideMap, finalNonOverlappingArea) {
+        let worksheet = tableau.extensions.worksheetContent.worksheet;
+        worksheet.getParametersAsync().then(parameters => {
+            console.log(parameters)
+            let totalAreaParameter = parameters.find(param => param.name === 'TotalArea');
+            let overlapAreaParameter = parameters.find(param => param.name === 'OverlapArea');
+            let outsideMapAreaParameter = parameters.find(param => param.name === 'OutsideMapArea');
+            let finalAreaParameter = parameters.find(param => param.name === 'FinalArea');
+
+            console.log(totalAreaParameter, overlapAreaParameter, outsideMapAreaParameter, finalAreaParameter)
+
+            console.log(
+                parseFloat(totalCircleArea),
+                parseFloat(totalIntersectionAreaBeforeUnioning),
+                parseFloat(areaOutsideMap),
+                parseFloat(finalNonOverlappingArea)
+            )
+
+            totalAreaParameter.changeValueAsync(parseFloat(totalCircleArea.toFixed(2)));
+            overlapAreaParameter.changeValueAsync(parseFloat(totalIntersectionAreaBeforeUnioning.toFixed(2)));
+            outsideMapAreaParameter.changeValueAsync(parseFloat(areaOutsideMap.toFixed(2)));
+            finalAreaParameter.changeValueAsync(parseFloat(finalNonOverlappingArea.toFixed(2)));
+
+            totalAreaParameter.changeParameterValueAsync(parseFloat(totalCircleArea.toFixed(2)));
+            overlapAreaParameter.changeParameterValueAsync(parseFloat(totalIntersectionAreaBeforeUnioning.toFixed(2)));
+            outsideMapAreaParameter.changeParameterValueAsync(parseFloat(areaOutsideMap.toFixed(2)));
+            finalAreaParameter.changeParameterValueAsync(parseFloat(finalNonOverlappingArea.toFixed(2)));
+        });
+
+    }
+
+    /**
+     * Applies zoom behavior
+     */
+    function zoomed(event) {
+        mapGroup.attr("transform", event.transform);
+    }
+
+    /**
+     * Display tooltip with county information.
+     * @param {Event} event - Mouse hover event.
+     * @param {Object} d - Data object for the hovered county.
+     */
+    function showTooltip(event, d) {
+        tooltip.transition()
+            .duration(200)
+            .style("opacity", 0.9);
+        tooltip.html(`
+                <span class="tooltip-category">ISD NAME:</span> <span class="tooltip-value">${d.properties.NAME}</span><br/>
+            `)
+            .style("left", (event.pageX + 10) + "px")
+            .style("top", (event.pageY - 28) + "px");
+        const tooltipNode = tooltip.node();
+
+        /**
+         * Bounding rectangle of the tooltip element.
+         * @type {DOMRect}
+         */
+        const tooltipRect = tooltipNode.getBoundingClientRect();
+        const svgRect = svg.node().getBoundingClientRect();
+        if (tooltipRect.right > svgRect.right) {
+            tooltip.style("left", (event.pageX - tooltipRect.width - 10) + "px");
+        }
+        if (tooltipRect.bottom > svgRect.bottom) {
+            tooltip.style("top", (event.pageY - tooltipRect.height - 10) + "px");
+        }
+    }
+
+    /**
+     * Hide the tooltip.
+     */
+    function hideTooltip() {
+        tooltip.transition()
+            .duration(500)
+            .style("opacity", 0);
+    }
+
+    /**
+     * Generate a circular path based on latitude, longitude, and radius.
+     * Sourced from; https://stackoverflow.com/questions/29734397/drawing-a-fixed-length-circle-in-d3-js
+     * @param {number} lat - Latitude of the circle center.
+     * @param {number} lon - Longitude of the circle center.
+     * @param {number} radius - Radius of the circle in kilometers.
+     * @param {Function} projection - Map projection function.
+     * @returns {string|Array} - SVG path string or array of coordinates.
+     */
+    function circlePath(lat, lon, radius, projection) {
+        var intervals = 72;
+        var intervalAngle = (360 / intervals);
+        var pointsData = [];
+        for (var i = 0; i < intervals; i++) {
+            pointsData.push(getDestinationPoint(lat, lon, i * intervalAngle, radius));
+        }
+        if (projection) {
+            var pointsData2 = [];
+            for (var i in pointsData) {
+                pointsData2.push(projection([pointsData[i][1], pointsData[i][0]]));
+            }
+            return d3.line()(pointsData2) + "Z";
+        } else {
+            return pointsData;
+        }
+    }
+
+    /**
+     * Calculate destination point given start coordinates, bearing, and distance.
+     * Sourced from; https://stackoverflow.com/questions/29734397/drawing-a-fixed-length-circle-in-d3-js
+     * @param {number} lat - Starting latitude.
+     * @param {number} lon - Starting longitude.
+     * @param {number} brng - Bearing in degrees.
+     * @param {number} d - Distance in kilometers.
+     * @returns {number[]} - Destination coordinates [lat, lon].
+     */
+    function getDestinationPoint(lat, lon, brng, d) {
+        var R = 6371; // Earth's radius in km
+        var deg2rad = Math.PI / 180; // Conversion factor from degrees to radians
+        var rad2deg = 180 / Math.PI; // Conversion factor from radians to degrees
+
+        // Convert input angles from degrees to radians
+        brng *= deg2rad; // Convert bearing to radians
+        lat *= deg2rad; // Convert latitude to radians
+        lon *= deg2rad; // Convert longitude to radians
+
+        // Calculate the destination latitude using the haversine formula
+        var lat2 = Math.asin(
+            Math.sin(lat) * Math.cos(d / R) +
+            Math.cos(lat) * Math.sin(d / R) * Math.cos(brng)
+        );
+
+        // Calculate the destination longitude using the haversine formula
+        var lon2 = lon + Math.atan2(
+            Math.sin(brng) * Math.sin(d / R) * Math.cos(lat),
+            Math.cos(d / R) - Math.sin(lat) * Math.sin(lat2)
+        );
+
+        // Convert the calculated latitude and longitude back to degrees and return as an array
+        return [lat2 * rad2deg, lon2 * rad2deg];
+    }
+
+    /**
+     * Function to create Circle as GEO JSON
+     */
+    function createCircleGeoJSON(lat, lon, radius) {
+        return turf.circle([lon, lat], radius, { steps: 64, units: 'kilometers' });
+    }
+
+
+    /**
+     * Zoom behavior for county click, making sure no part is cut out
+     */
+    function clickedCounty(event, d) {
+        const [[x0, y0], [x1, y1]] = path.bounds(d);
+        event.stopPropagation();
+        svg.transition().duration(750).call(
+            zoom.transform,
+            d3.zoomIdentity
+                .translate(width / 2, height / 2)
+                .scale(Math.min(40, 0.5 / Math.max((x1 - x0) / width, (y1 - y0) / height)))
+                .translate(-(x0 + x1) / 2, -(y0 + y1) / 2)
+        );
+    }
+
+    /**
+     * Resets map zoom
+     */
+    function reset() {
+        svg.transition().duration(750).call(
+            zoom.transform,
+            d3.zoomIdentity,
+            d3.zoomTransform(svg.node()).invert([width / 2, height / 2])
+        );
+    }
+
+    /**
+     * Initializes the map
+     */
+    function Start() {
+        initializeMap();
+        loadData();
+    }
+
+    // Initialize and load data
+    (function () {
+        window.onload = tableau.extensions.initializeAsync().then(async () => {
+            let worksheet = tableau.extensions.worksheetContent.worksheet
+            worksheet.addEventListener(
+                tableau.TableauEventType.SummaryDataChanged,
+                Start
+            );
+
+            Start();
+        }).catch((error) => {
+            console.log(error.stack || error)
+        });
+    })();
+</script>
+</body>
+</html>
