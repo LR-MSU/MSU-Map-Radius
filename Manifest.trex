@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest manifest-version="0.1" xmlns="http://www.tableau.com/xml/extension_manifest">
+  <worksheet-extension id="com.innovalytix.extension.msu.advancedmap" extension-version="1.0.0">
+    <default-locale>en_US</default-locale>
+    <name resource-id="name"/>
+    <description>Advanced Map</description>
+    <author name="Luiz Ramos" email="luiz.ramos@innovalytix.com" organization="Innovalytix" website="https://www.innovalytix.com"/>
+    <min-api-version>1.11</min-api-version>
+    <source-location>
+      <url>http://localhost/tableauTest.html</url>
+    </source-location>
+    <icon/>
+    <encoding id="x">
+      <display-name>New X</display-name>
+      <data-spec>
+          <data-type>numeric</data-type>
+          <data-type>string</data-type>
+      </data-spec>
+      <role-spec>
+          <role-type>continuous-dimension</role-type>
+          <role-type>continuous-measure</role-type>
+      </role-spec>
+      <fields max-count="1"/>
+      <encoding-icon token="letter-x" />
+      <tooltip resource-id="tooltip-x-id">Default tooltip text for X encoding</tooltip>
+    </encoding>
+    <encoding id="y">
+      <display-name>New Y</display-name>
+      <data-spec>
+          <data-type>numeric</data-type>
+          <data-type>string</data-type>
+      </data-spec>
+      <role-spec>
+          <role-type>continuous-dimension</role-type>
+          <role-type>continuous-measure</role-type>
+      </role-spec>
+      <fields max-count="1"/>
+      <encoding-icon token="letter-y" />
+      <tooltip resource-id="tooltip-x-id">Default tooltip text for Y encoding</tooltip>
+    </encoding>
+
+    <encoding id="x2">
+      <display-name>Old X</display-name>
+      <data-spec>
+          <data-type>numeric</data-type>
+          <data-type>string</data-type>
+      </data-spec>
+      <role-spec>
+          <role-type>continuous-dimension</role-type>
+          <role-type>continuous-measure</role-type>
+      </role-spec>
+      <fields max-count="1"/>
+      <tooltip resource-id="tooltip-x-id">Default tooltip text for X encoding</tooltip>
+    </encoding>
+    <encoding id="y2">
+      <display-name>Old Y</display-name>
+      <data-spec>
+          <data-type>numeric</data-type>
+          <data-type>string</data-type>
+      </data-spec>
+      <role-spec>
+          <role-type>continuous-dimension</role-type>
+          <role-type>continuous-measure</role-type>
+      </role-spec>
+      <fields max-count="1"/>
+      <tooltip resource-id="tooltip-x-id">Default tooltip text for Y encoding</tooltip>
+    </encoding>
+  </worksheet-extension>
+  <resources>
+    <resource id="name">
+      <text locale="en_US">Custom Map</text>
+    </resource>
+  </resources>
+</manifest>
