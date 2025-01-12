@@ -7,7 +7,7 @@
     <author name="Luiz Ramos" email="luiz.ramos@innovalytix.com" organization="Innovalytix" website="https://www.innovalytix.com"/>
     <min-api-version>1.11</min-api-version>
     <source-location>
-      <url>http://localhost/MSU-Map-Radius.html</url>
+      <url>https://lr-msu.github.io/MSU-Map-Radius/MSU-Map-Radius.html</url>
     </source-location>
     <icon/>
     <encoding id="x">
@@ -22,7 +22,7 @@
       </role-spec>
       <fields max-count="1"/>
       <encoding-icon token="letter-x" />
-      <tooltip resource-id="tooltip-x-id">Default tooltip text for X encoding</tooltip>
+      <tooltip resource-id="tooltip-x-id">Drop the new time periods longitude</tooltip>
     </encoding>
     <encoding id="y">
       <display-name>New Y</display-name>
@@ -36,7 +36,7 @@
       </role-spec>
       <fields max-count="1"/>
       <encoding-icon token="letter-y" />
-      <tooltip resource-id="tooltip-x-id">Default tooltip text for Y encoding</tooltip>
+      <tooltip resource-id="tooltip-y-id">Drop the new time periods latitude</tooltip>
     </encoding>
 
     <encoding id="x2">
@@ -50,7 +50,8 @@
           <role-type>continuous-measure</role-type>
       </role-spec>
       <fields max-count="1"/>
-      <tooltip resource-id="tooltip-x-id">Default tooltip text for X encoding</tooltip>
+      <encoding-icon token="letter-w" />
+      <tooltip resource-id="tooltip-x-id">Drop the previous time periods longitude</tooltip>
     </encoding>
     <encoding id="y2">
       <display-name>Old Y</display-name>
@@ -63,7 +64,8 @@
           <role-type>continuous-measure</role-type>
       </role-spec>
       <fields max-count="1"/>
-      <tooltip resource-id="tooltip-x-id">Default tooltip text for Y encoding</tooltip>
+      <encoding-icon token="letter-z" />
+      <tooltip resource-id="tooltip-y-id">Drop the previous time periods latitude</tooltip>
     </encoding>
   </worksheet-extension>
   <resources>
