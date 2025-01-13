@@ -245,6 +245,8 @@
                 d3.select(".state").raise();
                 d3.selectAll(".circle").raise();
                 d3.selectAll(".center-dot").raise();
+                d3.selectAll(".dot").raise();
+
                 showTooltip(event, d);
             })
             .on("mousemove", function (event, d) {
@@ -277,13 +279,12 @@
      */
     async function refreshData(circleGeoJSONs, radiusInKm, michiganState, worksheet) {
         try {
-            let coolIndex
             const [summaryData, encodingMap] = await Promise.all([
                 getSummaryDataTable(worksheet),
                 getEncodingMap(worksheet)
             ]);
 
-            console.log(summaryData, encodingMap);
+            console.log("Summary Data", summaryData, "Encoding Mao", encodingMap);
 
 
             console.log(encodingMap.x)
@@ -293,30 +294,52 @@
 
             const latitudeName = encodingMap.x['name'];
             const longitudeName = encodingMap.y['name'];
-            const cName = encodingMap.c['name'];
+            const latitude2Name = encodingMap.x2['name'];
+            const longitude2Name = encodingMap.y2['name']
 
             const circleCoordinates = summaryData.map(row => ({
                 lat: row[latitudeName]._value,
                 lon: row[longitudeName]._value,
-                cool: row[cName]._value
             }));
 
-            console.log(circleCoordinates);
+            const dotCoordinates = summaryData.map(row => ({
+                lat2:row[latitude2Name]._value,
+                lon2:row[longitude2Name]._value,
+            }));
+
+            console.log("Circle Coordinates:", circleCoordinates);
+            console.log("Dot Coordinates:", dotCoordinates);
 
             const validCircleCoordinates = circleCoordinates.filter(coord =>
+                !isNaN(coord.lat) && !isNaN(coord.lon) &&
                 typeof coord.lat === 'number' && typeof coord.lon === 'number'
             );
+            console.log("Valid Circle Coordinates", validCircleCoordinates)
+
+            const validDotCoordinates = dotCoordinates.filter(coord =>
+                !isNaN(coord.lat2) && !isNaN(coord.lon2) &&
+                typeof coord.lat2 === 'number' && typeof coord.lon2 === 'number'
+            );
+
+            console.log("Valid Dot Coordinates", validDotCoordinates)
 
             const circleGeoJSONs = validCircleCoordinates.map(circle =>
                 createCircleGeoJSON(circle.lat, circle.lon, radiusInKm)
             );
 
-            const filteredCircleGeoJSONs = circleGeoJSONs.filter((_, index) =>
-                validCircleCoordinates[index].cool === true
-            );
 
-            renderCircles(validCircleCoordinates, radiusInKm);
-            calculateAreas(filteredCircleGeoJSONs, michiganState);
+            /**
+             const dotGeoJSONs = validCircleCoordinates.map(circle =>
+             createCircleGeoJSON(circle.lat2, circle.lon2, radiusInKm)
+             ); **/
+
+            /**
+             const filteredCircleGeoJSONs = circleGeoJSONs.filter((_, index) =>
+             validCircleCoordinates[index].cool === true
+             ); **/
+
+            renderCircles(validCircleCoordinates, validDotCoordinates, radiusInKm);
+            calculateAreas(circleGeoJSONs, michiganState);
 
         } catch (error) {
             console.error("Error in refreshData:", error);
@@ -448,22 +471,46 @@
     /**
      * Renders the circle
      */
-    function renderCircles(circleCoordinates, radiusInKm) {
-        const hiddenIndices = new Set();
+    function renderCircles(circleCoordinates, dotCoordinates, radiusInKm) {
+        const hiddenCircleIndices = new Set();
+        const hiddenDotIndices = new Set();
 
         // Check distances and mark circles for hiding if within 5 miles
         circleCoordinates.forEach((circleA, indexA) => {
-            if (hiddenIndices.has(indexA)) return; // Skip if already hidden
+            if (hiddenCircleIndices.has(indexA)) return; // Skip if already hidden
+
+            console.log('Test-circle 1: ', circleA)
 
             circleCoordinates.forEach((circleB, indexB) => {
-                if (indexA === indexB || hiddenIndices.has(indexB)) return;
+                if (indexA === indexB || hiddenCircleIndices.has(indexB)) return;
 
                 const from = turf.point([circleA.lon, circleA.lat]);
+                console.log('Test-circle 2: ', circleB.lon, circleB.lat, circleB)
                 const to = turf.point([circleB.lon, circleB.lat]);
                 const distance = turf.distance(from, to, { units: 'miles' });
 
                 if (distance <= 5) {
-                    hiddenIndices.add(indexB); // Hide one of the circles
+                    hiddenCircleIndices.add(indexB); // Hide one of the circles
+                }
+            });
+        });
+
+        // Check distances and mark circles for hiding if within 5 miles
+        dotCoordinates.forEach((circleA, indexA) => {
+            if (hiddenDotIndices.has(indexA)) return; // Skip if already hidden
+
+            console.log('Test-circle 3: ', circleA)
+
+            circleCoordinates.forEach((circleB, indexB) => {
+                if (indexA === indexB || hiddenDotIndices.has(indexB)) return;
+
+                const from = turf.point([circleA.lon2, circleA.lat2]);
+                console.log('Test-circle 4: ', circleB.lon, circleB.lat, circleB)
+                const to = turf.point([circleB.lon, circleB.lat]);
+                const distance = turf.distance(from, to, { units: 'miles' });
+
+                if (distance <= 5) {
+                    hiddenDotIndices.add(indexB); // Hide one of the circles
                 }
             });
         });
@@ -474,17 +521,9 @@
             .append("path")
             .attr("class", "circle")
             .attr("d", d => circlePath(d.lat, d.lon, radiusInKm, projection))
-            .attr("fill", d => {
-                if (d.cool === true) return "blue";
-                if (d.cool === false) return "transparent";
-                return "grey";
-            })
-            .style("opacity", (d, i) => hiddenIndices.has(i) ? 0 : 0.5) // Set opacity to 0 for hidden circles
-            .attr("stroke", d => {
-                if (d.cool === true) return "black";
-                if (d.cool === false) return "transparent";
-                return "grey";
-            })
+            .attr("fill", "grey")
+            .style("opacity", (d, i) => hiddenCircleIndices.has(i) ? 0 : 0.5) // Set opacity to 0 for hidden circles
+            .attr("stroke", "grey")
             .attr("stroke-width", 0.5)
             .style("pointer-events", "none");
 
@@ -496,14 +535,24 @@
             .attr("cx", d => projection([d.lon, d.lat])[0])
             .attr("cy", d => projection([d.lon, d.lat])[1])
             .attr("r", 3)
-            .attr("fill", d => {
-                if (d.cool === true) return "blue";
-                if (d.cool === false) return "transparent";
-                return "grey"; // Default color if cool is not found
-            })
-            .style("opacity", (d, i) => hiddenIndices.has(i) ? 0 : 0.5) // Set opacity to 0 for hidden circles
+            .attr("fill", "#c671ac")
+            .style("opacity", (d, i) => hiddenCircleIndices.has(i) ? 0 : .75) // Set opacity to 0 for hidden circles
             .attr("stroke", "black")
             .attr("stroke-width", 0.5);
+
+        mapGroup.selectAll(".dot")
+            .data(dotCoordinates)
+            .enter()
+            .append("circle")
+            .attr("class", "dot")
+            .attr("cx", d => projection([d.lon2, d.lat2])[0])
+            .attr("cy", d => projection([d.lon2, d.lat2])[1])
+            .attr("r", 4)
+            .attr("stroke", "#8cc975")
+            .attr("stroke-width", 1.5)
+            .style("opacity", (d, i) => hiddenDotIndices.has(i) ? 0 : 1) // Set opacity to 0 for hidden circles
+            .attr("fill", "transparent");
+
     }
 
     /**
