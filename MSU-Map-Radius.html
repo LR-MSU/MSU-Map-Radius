@@ -284,14 +284,6 @@
                 getEncodingMap(worksheet)
             ]);
 
-            console.log("Summary Data", summaryData, "Encoding Mao", encodingMap);
-
-
-            console.log(encodingMap.x)
-            console.log(encodingMap.y)
-            console.log(encodingMap.x['name'])
-            console.log(encodingMap.y['name'])
-
             const latitudeName = encodingMap.x['name'];
             const longitudeName = encodingMap.y['name'];
             const latitude2Name = encodingMap.x2['name'];
@@ -479,13 +471,10 @@
         circleCoordinates.forEach((circleA, indexA) => {
             if (hiddenCircleIndices.has(indexA)) return; // Skip if already hidden
 
-            console.log('Test-circle 1: ', circleA)
-
             circleCoordinates.forEach((circleB, indexB) => {
                 if (indexA === indexB || hiddenCircleIndices.has(indexB)) return;
 
                 const from = turf.point([circleA.lon, circleA.lat]);
-                console.log('Test-circle 2: ', circleB.lon, circleB.lat, circleB)
                 const to = turf.point([circleB.lon, circleB.lat]);
                 const distance = turf.distance(from, to, { units: 'miles' });
 
@@ -499,13 +488,10 @@
         dotCoordinates.forEach((circleA, indexA) => {
             if (hiddenDotIndices.has(indexA)) return; // Skip if already hidden
 
-            console.log('Test-circle 3: ', circleA)
-
             circleCoordinates.forEach((circleB, indexB) => {
                 if (indexA === indexB || hiddenDotIndices.has(indexB)) return;
 
                 const from = turf.point([circleA.lon2, circleA.lat2]);
-                console.log('Test-circle 4: ', circleB.lon, circleB.lat, circleB)
                 const to = turf.point([circleB.lon, circleB.lat]);
                 const distance = turf.distance(from, to, { units: 'miles' });
 
