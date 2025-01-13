@@ -7,10 +7,10 @@
     <author name="Luiz Ramos" email="luiz.ramos@innovalytix.com" organization="Innovalytix" website="https://www.innovalytix.com"/>
     <min-api-version>1.11</min-api-version>
     <source-location>
-      <url>https://lr-msu.github.io/MSU-Map-Radius/MSU-Map-Radius.html</url>
+      <url>http://localhost/tableauTest.html</url>
     </source-location>
     <icon/>
-    <encoding id="x">
+    <encoding id="y">
       <display-name>New X</display-name>
       <data-spec>
           <data-type>numeric</data-type>
@@ -22,9 +22,9 @@
       </role-spec>
       <fields max-count="1"/>
       <encoding-icon token="letter-x" />
-      <tooltip resource-id="tooltip-x-id">Drop the new time periods longitude</tooltip>
+      <tooltip resource-id="tooltip-x-id">Default tooltip text for X encoding</tooltip>
     </encoding>
-    <encoding id="y">
+    <encoding id="x">
       <display-name>New Y</display-name>
       <data-spec>
           <data-type>numeric</data-type>
@@ -36,10 +36,10 @@
       </role-spec>
       <fields max-count="1"/>
       <encoding-icon token="letter-y" />
-      <tooltip resource-id="tooltip-y-id">Drop the new time periods latitude</tooltip>
+      <tooltip resource-id="tooltip-x-id">Default tooltip text for Y encoding</tooltip>
     </encoding>
 
-    <encoding id="x2">
+    <encoding id="y2">
       <display-name>Old X</display-name>
       <data-spec>
           <data-type>numeric</data-type>
@@ -50,10 +50,9 @@
           <role-type>continuous-measure</role-type>
       </role-spec>
       <fields max-count="1"/>
-      <encoding-icon token="letter-w" />
-      <tooltip resource-id="tooltip-x-id">Drop the previous time periods longitude</tooltip>
+      <tooltip resource-id="tooltip-x-id">Default tooltip text for X encoding</tooltip>
     </encoding>
-    <encoding id="y2">
+    <encoding id="x2">
       <display-name>Old Y</display-name>
       <data-spec>
           <data-type>numeric</data-type>
@@ -64,9 +63,9 @@
           <role-type>continuous-measure</role-type>
       </role-spec>
       <fields max-count="1"/>
-      <encoding-icon token="letter-z" />
-      <tooltip resource-id="tooltip-y-id">Drop the previous time periods latitude</tooltip>
+      <tooltip resource-id="tooltip-x-id">Default tooltip text for Y encoding</tooltip>
     </encoding>
+
   </worksheet-extension>
   <resources>
     <resource id="name">
