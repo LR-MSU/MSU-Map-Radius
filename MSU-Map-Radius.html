@@ -284,55 +284,39 @@
                 getEncodingMap(worksheet)
             ]);
 
-            const latitudeName = encodingMap.x['name'];
-            const longitudeName = encodingMap.y['name'];
-            const latitude2Name = encodingMap.x2['name'];
-            const longitude2Name = encodingMap.y2['name']
+            // Extract coordinate names once
+            const { x, y, x2, y2 } = encodingMap;
+            const latitudeName = x['name'];
+            const longitudeName = y['name'];
+            const latitude2Name = x2['name'];
+            const longitude2Name = y2['name'];
 
-            const circleCoordinates = summaryData.map(row => ({
-                lat: row[latitudeName]._value,
-                lon: row[longitudeName]._value,
-            }));
+            const [validCircleCoordinates, validDotCoordinates] = summaryData.reduce(
+                ([circleCoords, dotCoords], row) => {
+                    const lat = row[latitudeName]?._value;
+                    const lon = row[longitudeName]?._value;
+                    const lat2 = row[latitude2Name]?._value;
+                    const lon2 = row[longitude2Name]?._value;
 
-            const dotCoordinates = summaryData.map(row => ({
-                lat2:row[latitude2Name]._value,
-                lon2:row[longitude2Name]._value,
-            }));
+                    // Validate coordinates before adding them
+                    if (typeof lat === 'number' && typeof lon === 'number' && !isNaN(lat) && !isNaN(lon)) {
+                        circleCoords.push({ lat, lon });
+                    }
+                    if (typeof lat2 === 'number' && typeof lon2 === 'number' && !isNaN(lat2) && !isNaN(lon2)) {
+                        dotCoords.push({ lat2, lon2 });
+                    }
 
-            console.log("Circle Coordinates:", circleCoordinates);
-            console.log("Dot Coordinates:", dotCoordinates);
-
-            const validCircleCoordinates = circleCoordinates.filter(coord =>
-                !isNaN(coord.lat) && !isNaN(coord.lon) &&
-                typeof coord.lat === 'number' && typeof coord.lon === 'number'
-            );
-            console.log("Valid Circle Coordinates", validCircleCoordinates)
-
-            const validDotCoordinates = dotCoordinates.filter(coord =>
-                !isNaN(coord.lat2) && !isNaN(coord.lon2) &&
-                typeof coord.lat2 === 'number' && typeof coord.lon2 === 'number'
+                    return [circleCoords, dotCoords];
+                },
+                [[], []]
             );
 
-            console.log("Valid Dot Coordinates", validDotCoordinates)
-
-            const circleGeoJSONs = validCircleCoordinates.map(circle =>
-                createCircleGeoJSON(circle.lat, circle.lon, radiusInKm)
+            const circleGeoJSONs = validCircleCoordinates.map(({ lat, lon }) =>
+                createCircleGeoJSON(lat, lon, radiusInKm)
             );
-
-
-            /**
-             const dotGeoJSONs = validCircleCoordinates.map(circle =>
-             createCircleGeoJSON(circle.lat2, circle.lon2, radiusInKm)
-             ); **/
-
-            /**
-             const filteredCircleGeoJSONs = circleGeoJSONs.filter((_, index) =>
-             validCircleCoordinates[index].cool === true
-             ); **/
 
             renderCircles(validCircleCoordinates, validDotCoordinates, radiusInKm);
             calculateAreas(circleGeoJSONs, michiganState);
-
         } catch (error) {
             console.error("Error in refreshData:", error);
         }
