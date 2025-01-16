@@ -341,7 +341,6 @@
          */
         const radiusInKm = 20 * 1.60934;
         const circleGeoJSONs = circleCoordinates.map(circle => createCircleGeoJSON(circle.lat, circle.lon, radiusInKm));
-        console.log("mid", circleGeoJSONs)
 
         // Leads to params
         console.log("Leading to params")
@@ -354,9 +353,6 @@
             michiganState,
             worksheet
         )
-
-
-        //renderCircles(circleCoordinates, radiusInKm);
     }
 
     /**
@@ -432,9 +428,9 @@
          */
         console.log('Detailed intersection information:');
         console.log('Area outside the map for all unioned circles:', areaOutsideMap.toFixed(2), 'km²');
-        circleIntersectionsInfo.forEach(intersectionInfo => {
-            console.log(`Circle ${intersectionInfo.circle1} intersects with Circle ${intersectionInfo.circle2}, Intersection area: ${intersectionInfo.area.toFixed(2)} km²`);
-        });
+        //circleIntersectionsInfo.forEach(intersectionInfo => {
+        //    console.log(`Circle ${intersectionInfo.circle1} intersects with Circle ${intersectionInfo.circle2}, Intersection area: ${intersectionInfo.area.toFixed(2)} km²`);
+        //});
 
         /**
          * Log final result: the area covered by circles after subtracting overlaps and areas outside the map
