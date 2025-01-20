@@ -7,11 +7,10 @@
     <author name="Luiz Ramos" email="luiz.ramos@innovalytix.com" organization="Innovalytix" website="https://www.innovalytix.com"/>
     <min-api-version>1.11</min-api-version>
     <source-location>
-      <url>https://lr-msu.github.io/MSU-Map-Radius/MSU-Map-Radius.html</url>
-      <!-- http://localhost/MSU-Map-Radius.html -->
+      <url>http://localhost/MSU-Map-Radius-Fast.html</url>
     </source-location>
     <icon/>
-    <encoding id="y">
+    <encoding id="x">
       <display-name>New X</display-name>
       <data-spec>
           <data-type>numeric</data-type>
@@ -25,7 +24,7 @@
       <encoding-icon token="letter-x" />
       <tooltip resource-id="tooltip-x-id">Default tooltip text for X encoding</tooltip>
     </encoding>
-    <encoding id="x">
+    <encoding id="y">
       <display-name>New Y</display-name>
       <data-spec>
           <data-type>numeric</data-type>
@@ -40,7 +39,7 @@
       <tooltip resource-id="tooltip-x-id">Default tooltip text for Y encoding</tooltip>
     </encoding>
 
-    <encoding id="y2">
+    <encoding id="x2">
       <display-name>Old X</display-name>
       <data-spec>
           <data-type>numeric</data-type>
@@ -53,7 +52,7 @@
       <fields max-count="1"/>
       <tooltip resource-id="tooltip-x-id">Default tooltip text for X encoding</tooltip>
     </encoding>
-    <encoding id="x2">
+    <encoding id="y2">
       <display-name>Old Y</display-name>
       <data-spec>
           <data-type>numeric</data-type>
@@ -66,7 +65,6 @@
       <fields max-count="1"/>
       <tooltip resource-id="tooltip-x-id">Default tooltip text for Y encoding</tooltip>
     </encoding>
-
   </worksheet-extension>
   <resources>
     <resource id="name">
