@@ -45,6 +45,25 @@
             color: #333;
             font-weight: bold;
         }
+        #loading {
+            position: fixed;
+            width: 100vw;
+            height: 100vh;
+            background: white;
+            z-index: 1000;
+            display: none; /* Initially hidden */
+            justify-content: center;
+            align-items: center;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .spinner {
+            animation: spin 1s linear infinite;
+        }
     </style>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="https://d3js.org/topojson.v3.min.js"></script>
@@ -52,6 +71,9 @@
     <script src="tableau.extensions.1.latest.js"></script>
 </head>
 <body>
+<div id="loading">
+    <img src="loading.png" class="spinner" alt="Loading..." />
+</div>
 <svg width="100vw" height="100vh">
     <defs>
         <clipPath id="stateClip">
@@ -62,6 +84,15 @@
 </svg>
 <div id="tooltip" class="tooltip"></div>
 <script>
+    // Show the loading spinner when the map starts loading
+    function showLoading() {
+        d3.select("#loading").style("display", "flex");
+    }
+
+    // Hide the loading spinner when the map has finished loading
+    function hideLoading() {
+        d3.select("#loading").style("display", "none");
+    }
 
     const svgConst = document.querySelector('svg');
 
@@ -119,6 +150,7 @@
         const rows = [];
         const columns = dataTablePage.columns;
         const data = dataTablePage.data;
+        console.time('line 151-159')
         for (let i = data.length - 1; i >= 0; --i) {
             const row = {};
             for (let j = 0; j < columns.length; ++j) {
@@ -126,6 +158,7 @@
             }
             rows.push(row);
         }
+        console.timeEnd('line 151-159')
         return rows;
     }
 
@@ -141,8 +174,9 @@
 
         const marksCard =
             visualSpec.marksSpecifications[visualSpec.activeMarksSpecificationIndex];
+        console.time('175-177')
         for (const encoding of marksCard.encodings) { encodingMap[encoding.id] = encoding.field; }
-
+        console.timeEnd('175-177')
         return encodingMap;
     }
 
@@ -156,6 +190,7 @@
             undefined,
             { ignoreSelection: true }
         );
+        console.time('191-200')
         for (
             let currentPage = 0;
             currentPage < dataTableReader.pageCount;
@@ -164,6 +199,7 @@
             const dataTablePage = await dataTableReader.getPageAsync(currentPage);
             rows = rows.concat(convertToListOfNamedRows(dataTablePage));
         }
+        console.timeEnd('191-200')
         await dataTableReader.releaseAsync();
 
         return rows;
@@ -190,6 +226,7 @@
 
     // Load and process data
     function loadData() {
+        //showLoading();
         /**
          * Load and process the JSON file containing geographical data.
          * This asynchronous function fetches the 'cb_201.json' file, containing
@@ -229,6 +266,7 @@
      * Renders county borders
      */
     function renderCounties(michiganCounties) {
+        console.log("Entered renderCounties")
         mapGroup.selectAll("*").remove();
 
         mapGroup.selectAll(".county")
@@ -263,6 +301,7 @@
      * Selects and updates the existing state border element.
      */
     function renderStateBorder(michiganState) {
+        console.log("Entered renderStateBorder")
         svg.select("#state-border")
             .datum(michiganState)
             .attr("d", path);
@@ -279,6 +318,9 @@
      */
     async function refreshData(circleGeoJSONs, radiusInKm, michiganState, worksheet) {
         try {
+            console.log("Entered refresh data")
+
+            console.time("refreshData")
             const [summaryData, encodingMap] = await Promise.all([
                 getSummaryDataTable(worksheet),
                 getEncodingMap(worksheet)
@@ -286,12 +328,13 @@
 
             // Extract coordinate names once
             const { x, y, x2, y2 } = encodingMap;
-            const latitudeName = x['name'];
-            const longitudeName = y['name'];
-            const latitude2Name = x2['name'];
-            const longitude2Name = y2['name'];
+            console.log(encodingMap)
+            const longitudeName = x['name'];
+            const latitudeName = y['name'];
+            const longitude2Name = x2['name'];
+            const latitude2Name = y2['name'];
 
-            const [validCircleCoordinates, validDotCoordinates] = summaryData.reduce(
+            let [validCircleCoordinates, validDotCoordinates] = summaryData.reduce(
                 ([circleCoords, dotCoords], row) => {
                     const lat = row[latitudeName]?._value;
                     const lon = row[longitudeName]?._value;
@@ -300,23 +343,45 @@
 
                     // Validate coordinates before adding them
                     if (typeof lat === 'number' && typeof lon === 'number' && !isNaN(lat) && !isNaN(lon)) {
-                        circleCoords.push({ lat, lon });
+                        if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+                            circleCoords.push({ lat, lon });
+                        }
                     }
                     if (typeof lat2 === 'number' && typeof lon2 === 'number' && !isNaN(lat2) && !isNaN(lon2)) {
-                        dotCoords.push({ lat2, lon2 });
+                        if (lat2 >= -90 && lat2 <= 90 && lon2 >= -180 && lon2 <= 180) {
+                            dotCoords.push({ lat2, lon2 });
+                        }
                     }
 
                     return [circleCoords, dotCoords];
                 },
                 [[], []]
             );
+            console.log("Line 360", validCircleCoordinates.length)
+
+
+            validCircleCoordinates = Array.from(
+                new Set(validCircleCoordinates.map(loc => JSON.stringify(loc)))
+            ).map(str => JSON.parse(str));
+
+            validDotCoordinates = Array.from(
+                new Set(validDotCoordinates.map(loc => JSON.stringify(loc)))
+            ).map(str => JSON.parse(str));
+
+            console.timeEnd("refreshData")
+            console.log("Line 362", validCircleCoordinates[0], validCircleCoordinates.length)
+
+
+
+            console.time("All scripts supposedly")
+            renderCircles(validCircleCoordinates, validDotCoordinates, radiusInKm);
 
             const circleGeoJSONs = validCircleCoordinates.map(({ lat, lon }) =>
                 createCircleGeoJSON(lat, lon, radiusInKm)
             );
 
-            renderCircles(validCircleCoordinates, validDotCoordinates, radiusInKm);
             calculateAreas(circleGeoJSONs, michiganState);
+            console.timeEnd("All scripts supposedly")
         } catch (error) {
             console.error("Error in refreshData:", error);
         }
@@ -358,173 +423,130 @@
     /**
      * Calculates the total covered area of the circles
      */
-    function calculateAreas(circleGeoJSONs, michiganBoundary) {
-        let areaOutsideMap = 0;
 
-        /**
-         * Array to store info about intersections.
-         */
-        let circleIntersectionsInfo = [];
+    function calculateAreas(circleGeoJSONs, michiganState) {
+        console.log("Entered calculate areas")
+        console.time("calculateAreas")
+        const worker = new Worker('worker.js');
 
-        /**
-         * Step 1: Union all circles to get a single object representing the total area covered by circles.
-         */
-        let unionedCircles = circleGeoJSONs.reduce((acc, current, index) => {
-            if (!acc) return current;
-            return turf.union(acc, current);
-        }, null);
+        // Send data to the worker
+        worker.postMessage({ circleGeoJSONs, michiganBoundary: michiganState });
 
+        // Handle messages from the worker
+        worker.onmessage = function (e) {
+            if (e.data.type === 'log') {
+                // Log messages from the worker
+                console.log(e.data.message);
+            } else if (e.data.type === 'results') {
+                const {
+                    totalCircleArea,
+                    totalIntersectionAreaBeforeUnioning,
+                    areaOutsideMap,
+                    finalNonOverlappingArea
+                } = e.data.results;
 
-        /**
-         * Step 2: Calculate the total area of all circles (including overlaps)
-         */
-        let totalCircleArea = unionedCircles ? turf.area(unionedCircles) / 1e6 : 0;
+                // Update Tableau parameters
+                updateTableauParameters(
+                    totalCircleArea,
+                    totalIntersectionAreaBeforeUnioning,
+                    areaOutsideMap,
+                    finalNonOverlappingArea
+                );
+            }
+        };
 
-        /**
-         * Step 3: Calculate the area of the unioned circles that extends beyond the map (state boundary)
-         */
-        const areaOfUnionedCirclesOutsideMap = turf.difference(unionedCircles, michiganBoundary);
-        if (areaOfUnionedCirclesOutsideMap) {
-            areaOutsideMap = turf.area(areaOfUnionedCirclesOutsideMap) / 1e6;
-        }
-
-        /**
-         * Step 4: Calculate the non-overlapping area by subtracting the area outside the map
-         */
-        const finalNonOverlappingArea = totalCircleArea - areaOutsideMap;
-
-        /**
-         * Output detailed intersection information
-         */
-        circleGeoJSONs.forEach((circle, i) => {
-            const area = turf.area(circle) / 1e6;
-            console.log(`Circle ${i + 1}: Initial area: ${area.toFixed(2)} km²`);
-            circleGeoJSONs.slice(i + 1).forEach((otherCircle, j) => {
-                const intersection = turf.intersect(circle, otherCircle);
-                if (intersection) {
-                    const intersectionArea = turf.area(intersection) / 1e6;
-                    circleIntersectionsInfo.push({ circle1: i + 1, circle2: j + i + 2, area: intersectionArea });
-                    console.log(`Intersection between circle ${i + 1} and circle ${j + i + 2}: ${intersectionArea.toFixed(2)} km²`);
-                }
-            });
-        });
-
-        /**
-         * Output total area taken by intersections before unioning
-         */
-        const totalIntersectionAreaBeforeUnioning = circleIntersectionsInfo.reduce((acc, intersectionInfo) => acc + intersectionInfo.area, 0);
-        console.log('Total area taken by circle intersections (before unioning):', totalIntersectionAreaBeforeUnioning.toFixed(2), 'km²');
-
-        /**
-         * Output results
-         */
-        console.log('Total area of all circles (before subtracting overlaps and areas outside map):', totalCircleArea.toFixed(2), 'km²');
-        console.log('Total unioned overlap area:', totalIntersectionAreaBeforeUnioning.toFixed(2), 'km²');
-        console.log('Total area outside map:', areaOutsideMap.toFixed(2), 'km²');
-        console.log('Total non-overlapping area inside the map (after subtracting overlaps and areas outside map):', finalNonOverlappingArea.toFixed(2), 'km²');
-
-        /**
-         * Output detailed intersection information
-         */
-        console.log('Detailed intersection information:');
-        console.log('Area outside the map for all unioned circles:', areaOutsideMap.toFixed(2), 'km²');
-        //circleIntersectionsInfo.forEach(intersectionInfo => {
-        //    console.log(`Circle ${intersectionInfo.circle1} intersects with Circle ${intersectionInfo.circle2}, Intersection area: ${intersectionInfo.area.toFixed(2)} km²`);
-        //});
-
-        /**
-         * Log final result: the area covered by circles after subtracting overlaps and areas outside the map
-         */
-        console.log('Final area covered by circles after subtracting overlaps and areas outside the map:', finalNonOverlappingArea.toFixed(2), 'km²');
-
-        updateTableauParameters(totalCircleArea, totalIntersectionAreaBeforeUnioning, areaOutsideMap, finalNonOverlappingArea);
+        // Handle errors from the worker
+        worker.onerror = function (e) {
+            console.error('Worker error:', e.message);
+        };
+        console.timeEnd("calculateAreas")
     }
 
     /**
      * Renders the circle
      */
+
     function renderCircles(circleCoordinates, dotCoordinates, radiusInKm) {
-        const hiddenCircleIndices = new Set();
-        const hiddenDotIndices = new Set();
+        console.log("Entered rendercircles")
+        console.time('446-453 Send data and recieve back data from worker')
+        console.time('447- 498 Start to termination of circle worker')
+        const worker = new Worker('circleWorker.js');
 
-        // Check distances and mark circles for hiding if within 5 miles
-        circleCoordinates.forEach((circleA, indexA) => {
-            if (hiddenCircleIndices.has(indexA)) return; // Skip if already hidden
+        console.log("Line 465", circleCoordinates.length, dotCoordinates.length)
 
-            circleCoordinates.forEach((circleB, indexB) => {
-                if (indexA === indexB || hiddenCircleIndices.has(indexB)) return;
+        // Send data to the worker
+        worker.postMessage({ circleCoordinates, dotCoordinates });
 
-                const from = turf.point([circleA.lon, circleA.lat]);
-                const to = turf.point([circleB.lon, circleB.lat]);
-                const distance = turf.distance(from, to, { units: 'miles' });
+        // Listen for results from the worker
+        worker.onmessage = function (event) {
+            const { hiddenCircleIndices, hiddenDotIndices } = event.data;
+            console.timeEnd('446-453 Send data and recieve back data from worker')
+            console.time('Worker visual response')
 
-                if (distance <= 5) {
-                    hiddenCircleIndices.add(indexB); // Hide one of the circles
-                }
-            });
-        });
+            circleCoordinates = circleCoordinates.filter((_, i) => !hiddenCircleIndices.includes(i)).map(d => ({
+                ...d,
+                projected: projection([d.lon, d.lat]),
+                path: circlePath(d.lat, d.lon, radiusInKm, projection),
+            }));
 
-        // Check distances and mark circles for hiding if within 5 miles
-        dotCoordinates.forEach((circleA, indexA) => {
-            if (hiddenDotIndices.has(indexA)) return; // Skip if already hidden
+            console.log("Line 474", circleCoordinates.length, dotCoordinates.length, circleCoordinates[0])
 
-            circleCoordinates.forEach((circleB, indexB) => {
-                if (indexA === indexB || hiddenDotIndices.has(indexB)) return;
+            // Render circles with opacity based on worker results
+            mapGroup.selectAll(".circle")
+                .data(circleCoordinates)
+                .enter()
+                .append("path")
+                .attr("class", "circle")
+                .attr("d", d => d.path)
+                .attr("fill", "grey")
+                .style("opacity", 0.5) // Use worker results
+                .attr("stroke", "grey")
+                .attr("stroke-width", 0.5)
+                .style("pointer-events", "none");
 
-                const from = turf.point([circleA.lon2, circleA.lat2]);
-                const to = turf.point([circleB.lon, circleB.lat]);
-                const distance = turf.distance(from, to, { units: 'miles' });
+            // Render center dots with opacity based on worker results
+            mapGroup.selectAll(".center-dot")
+                .data(circleCoordinates)
+                .enter()
+                .append("circle")
+                .attr("class", "center-dot")
+                .attr("cx", d => d.projected[0])
+                .attr("cy", d => d.projected[1])
+                .attr("r", 3)
+                .attr("fill", "#c671ac")
+                .style("opacity", 0.75) // Use worker results
+                .attr("stroke", "black")
+                .attr("stroke-width", 0.5);
 
-                if (distance <= 5) {
-                    hiddenDotIndices.add(indexB); // Hide one of the circles
-                }
-            });
-        });
 
-        mapGroup.selectAll(".circle")
-            .data(circleCoordinates)
-            .enter()
-            .append("path")
-            .attr("class", "circle")
-            .attr("d", d => circlePath(d.lat, d.lon, radiusInKm, projection))
-            .attr("fill", "grey")
-            .style("opacity", (d, i) => hiddenCircleIndices.has(i) ? 0 : 0.5) // Set opacity to 0 for hidden circles
-            .attr("stroke", "grey")
-            .attr("stroke-width", 0.5)
-            .style("pointer-events", "none");
 
-        mapGroup.selectAll(".center-dot")
-            .data(circleCoordinates)
-            .enter()
-            .append("circle")
-            .attr("class", "center-dot")
-            .attr("cx", d => projection([d.lon, d.lat])[0])
-            .attr("cy", d => projection([d.lon, d.lat])[1])
-            .attr("r", 3)
-            .attr("fill", "#c671ac")
-            .style("opacity", (d, i) => hiddenCircleIndices.has(i) ? 0 : .75) // Set opacity to 0 for hidden circles
-            .attr("stroke", "black")
-            .attr("stroke-width", 0.5);
 
-        mapGroup.selectAll(".dot")
-            .data(dotCoordinates)
-            .enter()
-            .append("circle")
-            .attr("class", "dot")
-            .attr("cx", d => projection([d.lon2, d.lat2])[0])
-            .attr("cy", d => projection([d.lon2, d.lat2])[1])
-            .attr("r", 4)
-            .attr("stroke", "#8cc975")
-            .attr("stroke-width", 1.5)
-            .style("opacity", (d, i) => hiddenDotIndices.has(i) ? 0 : 1) // Set opacity to 0 for hidden circles
-            .attr("fill", "transparent");
+            // Render dots with opacity based on worker results
+            mapGroup.selectAll(".dot")
+                .data(dotCoordinates.filter((_, i) => !hiddenDotIndices.includes(i)))
+                .enter()
+                .append("circle")
+                .attr("class", "dot")
+                .attr("cx", d => projection([d.lon2, d.lat2])[0])
+                .attr("cy", d => projection([d.lon2, d.lat2])[1])
+                .attr("r", 4)
+                .attr("stroke", "#8cc975")
+                .attr("stroke-width", 1.5)
+                .attr("fill", "transparent");
 
+            console.timeEnd('Worker visual response')
+            hideLoading();
+            // Terminate the worker after use
+            worker.terminate();
+            console.timeEnd('447- 498 Start to termination of circle worker')
+        };
     }
 
     /**
      * Initializes extension and sets parameters to values from the calculations
      */
     function updateTableauParameters(totalCircleArea, totalIntersectionAreaBeforeUnioning, areaOutsideMap, finalNonOverlappingArea) {
+        console.log("Entered updateTableauParameters")
         let worksheet = tableau.extensions.worksheetContent.worksheet;
         worksheet.getParametersAsync().then(parameters => {
             console.log(parameters)
@@ -561,6 +583,9 @@
     function zoomed(event) {
         mapGroup.attr("transform", event.transform);
     }
+
+    // Debounce timer variable
+    let tooltipTimeout;
 
     /**
      * Display tooltip with county information.
@@ -617,6 +642,7 @@
         for (var i = 0; i < intervals; i++) {
             pointsData.push(getDestinationPoint(lat, lon, i * intervalAngle, radius));
         }
+
         if (projection) {
             var pointsData2 = [];
             for (var i in pointsData) {
@@ -703,6 +729,7 @@
     function Start() {
         initializeMap();
         loadData();
+        showLoading();
     }
 
     // Initialize and load data
