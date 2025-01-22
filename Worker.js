@@ -1,10 +1,14 @@
 importScripts(
     'https://cdnjs.cloudflare.com/ajax/libs/Turf.js/6.5.0/turf.min.js',
-    'https://cdn.jsdelivr.net/npm/rbush@4.0.1/rbush.min.js'
+    'https://cdn.jsdelivr.net/npm/rbush@4.0.1/rbush.min.js' // Import RBush
 );
 
 self.onmessage = function (e) {
     let { circleGeoJSONs, michiganBoundary } = e.data;
+
+    function kmToMiles(km) {
+        return km * 0.62137
+    }
 
     circleGeoJSONs = circleGeoJSONs.filter((circle, index, self) =>
         index === self.findIndex((c) => JSON.stringify(c) === JSON.stringify(circle))
@@ -13,23 +17,23 @@ self.onmessage = function (e) {
     let areaOutsideMap = 0;
     let circleIntersectionsInfo = [];
 
-    // Union all circles
+    // Step 1: Union all circles
     let unionedCircles = circleGeoJSONs.reduce((acc, current, index) => {
         if (!acc) return current;
         return turf.union(acc, current);
     }, null);
 
-    // Calculate the total area of all circles (including overlaps)
-    let totalCircleArea = unionedCircles ? turf.area(unionedCircles) / 1e6 : 0;
+    // Step 2: Calculate the total area of all circles (including overlaps)
+    let totalCircleArea = kmToMiles(unionedCircles ? turf.area(unionedCircles) / 1e6 : 0);
 
-    // Calculate the area of the unioned circles that extends beyond the map (state boundary)
+    // Step 3: Calculate the area of the unioned circles that extends beyond the map (state boundary)
     const areaOfUnionedCirclesOutsideMap = turf.difference(unionedCircles, michiganBoundary);
     if (areaOfUnionedCirclesOutsideMap) {
-        areaOutsideMap = turf.area(areaOfUnionedCirclesOutsideMap) / 1e6;
+        areaOutsideMap = kmToMiles(turf.area(areaOfUnionedCirclesOutsideMap) / 1e6);
     }
 
-    // Calculate the non-overlapping area by subtracting the area outside the map
-    const finalNonOverlappingArea = totalCircleArea - areaOutsideMap;
+    // Step 4: Calculate the non-overlapping area by subtracting the area outside the map
+    const finalNonOverlappingArea = kmToMiles(totalCircleArea - areaOutsideMap);
 
     // Output detailed intersection information
     console.time("RBush Intersection Calculation");
@@ -65,7 +69,7 @@ self.onmessage = function (e) {
     console.timeEnd("RBush Intersection Calculation");
 
     // Output total area taken by intersections before unioning
-    const totalIntersectionAreaBeforeUnioning = circleIntersectionsInfo.reduce((acc, intersectionInfo) => acc + intersectionInfo.area, 0);
+    const totalIntersectionAreaBeforeUnioning = kmToMiles(circleIntersectionsInfo.reduce((acc, intersectionInfo) => acc + intersectionInfo.area, 0));
     self.postMessage({ type: 'log', message: `Total area taken by circle intersections (before unioning): ${totalIntersectionAreaBeforeUnioning.toFixed(2)} km²` });
 
     // Output results
