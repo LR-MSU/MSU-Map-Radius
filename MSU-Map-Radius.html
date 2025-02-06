@@ -380,7 +380,20 @@
                 createCircleGeoJSON(lat, lon, radiusInKm)
             );
 
+            // Add this before area calculations
+            const options = { tolerance: 0.0001, highQuality: true };
+            michiganState = turf.simplify(michiganState, options);
+
             calculateAreas(circleGeoJSONs, michiganState);
+
+            // Add this after area calculations
+            const michiganArea = turf.area(michiganState) / 1e6 * 0.62137; // Convert to square miles
+            if (finalNonOverlappingArea > michiganArea) {
+                console.warn(`Calculated area (${finalNonOverlappingArea.toFixed(2)} sq mi) exceeds Michigan's area (${michiganArea.toFixed(2)} sq mi)`);
+                // Optionally cap the result at Michigan's total area
+                finalNonOverlappingArea = Math.min(finalNonOverlappingArea, michiganArea);
+            }
+
             console.timeEnd("All scripts supposedly")
         } catch (error) {
             console.error("Error in refreshData:", error);
@@ -392,32 +405,33 @@
      * Processes Circle data
      */
     function processCircleData(michiganState) {
-
-        /**
-         * Array of dictionaries with circle coordinates
-         */
+        // Default coordinates for standalone mode
         let circleCoordinates = [
-            { lat: 0, lon: 0 }
+            { lat: 42.7317, lon: -84.4854 }  // MSU's coordinates
         ];
 
-        /**
-         * Converts 20 miles to Kilometers
-         * @type {number}
-         */
         const radiusInKm = 20 * 1.60934;
-        const circleGeoJSONs = circleCoordinates.map(circle => createCircleGeoJSON(circle.lat, circle.lon, radiusInKm));
+        const circleGeoJSONs = circleCoordinates.map(circle => 
+            createCircleGeoJSON(circle.lat, circle.lon, radiusInKm)
+        );
 
-        // Leads to params
-        console.log("Leading to params")
-
-
-        let worksheet = tableau.extensions.worksheetContent.worksheet;
-        refreshData(
-            circleGeoJSONs,
-            radiusInKm,
-            michiganState,
-            worksheet
-        )
+        if (typeof tableau !== 'undefined' && tableau.extensions.worksheetContent) {
+            // Tableau mode
+            let worksheet = tableau.extensions.worksheetContent.worksheet;
+            refreshData(
+                circleGeoJSONs,
+                radiusInKm,
+                michiganState,
+                worksheet
+            );
+        } else {
+            // Standalone mode
+            renderCircles(
+                circleCoordinates,
+                [], // Empty array for dot coordinates in standalone mode
+                radiusInKm
+            );
+        }
     }
 
     /**
@@ -543,38 +557,36 @@
     }
 
     /**
-     * Initializes extension and sets parameters to values from the calculations
+     * Updates Tableau parameters or uses default values in standalone mode
      */
     function updateTableauParameters(totalCircleArea, totalIntersectionAreaBeforeUnioning, areaOutsideMap, finalNonOverlappingArea) {
-        console.log("Entered updateTableauParameters")
-        let worksheet = tableau.extensions.worksheetContent.worksheet;
-        worksheet.getParametersAsync().then(parameters => {
-            console.log(parameters)
-            let totalAreaParameter = parameters.find(param => param.name === 'TotalArea');
-            let overlapAreaParameter = parameters.find(param => param.name === 'OverlapArea');
-            let outsideMapAreaParameter = parameters.find(param => param.name === 'OutsideMapArea');
-            let finalAreaParameter = parameters.find(param => param.name === 'FinalArea');
+        if (typeof tableau !== 'undefined' && tableau.extensions.worksheetContent) {
+            let worksheet = tableau.extensions.worksheetContent.worksheet;
+            worksheet.getParametersAsync().then(parameters => {
+                let totalAreaParameter = parameters.find(param => param.name === 'TotalArea');
+                let overlapAreaParameter = parameters.find(param => param.name === 'OverlapArea');
+                let outsideMapAreaParameter = parameters.find(param => param.name === 'OutsideMapArea');
+                let finalAreaParameter = parameters.find(param => param.name === 'FinalArea');
 
-            console.log(totalAreaParameter, overlapAreaParameter, outsideMapAreaParameter, finalAreaParameter)
+                if (totalAreaParameter) totalAreaParameter.changeValueAsync(parseFloat(totalCircleArea.toFixed(2)));
+                if (overlapAreaParameter) overlapAreaParameter.changeValueAsync(parseFloat(totalIntersectionAreaBeforeUnioning.toFixed(2)));
+                if (outsideMapAreaParameter) outsideMapAreaParameter.changeValueAsync(parseFloat(areaOutsideMap.toFixed(2)));
+                if (finalAreaParameter) finalAreaParameter.changeValueAsync(parseFloat(finalNonOverlappingArea.toFixed(2)));
 
-            console.log(
-                parseFloat(totalCircleArea),
-                parseFloat(totalIntersectionAreaBeforeUnioning),
-                parseFloat(areaOutsideMap),
-                parseFloat(finalNonOverlappingArea)
-            )
-
-            totalAreaParameter.changeValueAsync(parseFloat(totalCircleArea.toFixed(2)));
-            overlapAreaParameter.changeValueAsync(parseFloat(totalIntersectionAreaBeforeUnioning.toFixed(2)));
-            outsideMapAreaParameter.changeValueAsync(parseFloat(areaOutsideMap.toFixed(2)));
-            finalAreaParameter.changeValueAsync(parseFloat(finalNonOverlappingArea.toFixed(2)));
-
-            totalAreaParameter.changeParameterValueAsync(parseFloat(totalCircleArea.toFixed(2)));
-            overlapAreaParameter.changeParameterValueAsync(parseFloat(totalIntersectionAreaBeforeUnioning.toFixed(2)));
-            outsideMapAreaParameter.changeParameterValueAsync(parseFloat(areaOutsideMap.toFixed(2)));
-            finalAreaParameter.changeParameterValueAsync(parseFloat(finalNonOverlappingArea.toFixed(2)));
-        });
-
+                if (totalAreaParameter) totalAreaParameter.changeParameterValueAsync(parseFloat(totalCircleArea.toFixed(2)));
+                if (overlapAreaParameter) overlapAreaParameter.changeParameterValueAsync(parseFloat(totalIntersectionAreaBeforeUnioning.toFixed(2)));
+                if (outsideMapAreaParameter) outsideMapAreaParameter.changeParameterValueAsync(parseFloat(areaOutsideMap.toFixed(2)));
+                if (finalAreaParameter) finalAreaParameter.changeParameterValueAsync(parseFloat(finalNonOverlappingArea.toFixed(2)));
+            });
+        } else {
+            // In standalone mode, just log the values
+            console.log('Standalone Mode - Areas calculated:', {
+                totalCircleArea: totalCircleArea.toFixed(2),
+                totalIntersectionArea: totalIntersectionAreaBeforeUnioning.toFixed(2),
+                areaOutsideMap: areaOutsideMap.toFixed(2),
+                finalNonOverlappingArea: finalNonOverlappingArea.toFixed(2)
+            });
+        }
     }
 
     /**
@@ -734,17 +746,27 @@
 
     // Initialize and load data
     (function () {
-        window.onload = tableau.extensions.initializeAsync().then(async () => {
-            let worksheet = tableau.extensions.worksheetContent.worksheet
-            worksheet.addEventListener(
-                tableau.TableauEventType.SummaryDataChanged,
-                Start
-            );
-
-            Start();
-        }).catch((error) => {
-            console.log(error.stack || error)
-        });
+        window.onload = function() {
+            // Check if we're running inside Tableau
+            if (typeof tableau !== 'undefined') {
+                tableau.extensions.initializeAsync().then(async () => {
+                    let worksheet = tableau.extensions.worksheetContent.worksheet;
+                    worksheet.addEventListener(
+                        tableau.TableauEventType.SummaryDataChanged,
+                        Start
+                    );
+                    Start();
+                }).catch((error) => {
+                    console.log('Tableau initialization error:', error.stack || error);
+                    // If Tableau initialization fails, still start the map in standalone mode
+                    Start();
+                });
+            } else {
+                // If we're not in Tableau, just start the map
+                console.log('Running in standalone mode');
+                Start();
+            }
+        };
     })();
 </script>
 </body>
