@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -146,21 +147,20 @@
     // and a list of columns and puts the data in a list where each entry is an
     // object that maps from field names to DataValues
     // (example of a row being: { SUM(Sales): ..., SUM(Profit): ..., Ship Mode: ..., })
-    function convertToListOfNamedRows (dataTablePage) {
-        const rows = [];
-        const columns = dataTablePage.columns;
-        const data = dataTablePage.data;
-        console.time('line 151-159')
-        for (let i = data.length - 1; i >= 0; --i) {
-            const row = {};
-            for (let j = 0; j < columns.length; ++j) {
-                row[columns[j].fieldName] = data[i][columns[j].index];
-            }
-            rows.push(row);
-        }
-        console.timeEnd('line 151-159')
-        return rows;
-    }
+    function convertToListOfNamedRows(dataTablePage) {
+    console.time('convertToListOfNamedRows');
+    
+    const { columns, data } = dataTablePage;
+    const columnMap = columns.map(col => col.fieldName);
+    
+    const rows = data.map(row => 
+        Object.fromEntries(columnMap.map((key, index) => [key, row[columns[index].index]]))
+    );
+
+    console.timeEnd('convertToListOfNamedRows');
+    return rows;
+}
+
 
     // Uses getVisualSpecificationAsync to build a map of encoding identifiers (specified in the .trex file)
     // to fields that the user has placed on the encoding's shelf.
@@ -183,27 +183,30 @@
     // Gets each page of data in the summary data and returns a list of rows of data
     // associated with field names.
     async function getSummaryDataTable(worksheet) {
-        let rows = [];
+    console.time('getSummaryDataTable');
 
-        // Fetch the summary data using the DataTableReader
-        const dataTableReader = await worksheet.getSummaryDataReaderAsync(
-            undefined,
-            { ignoreSelection: true }
-        );
-        console.time('191-200')
-        for (
-            let currentPage = 0;
-            currentPage < dataTableReader.pageCount;
-            currentPage++
-        ) {
-            const dataTablePage = await dataTableReader.getPageAsync(currentPage);
-            rows = rows.concat(convertToListOfNamedRows(dataTablePage));
-        }
-        console.timeEnd('191-200')
-        await dataTableReader.releaseAsync();
+    // Fetch the summary data using the DataTableReader
+    const dataTableReader = await worksheet.getSummaryDataReaderAsync(undefined, { ignoreSelection: true });
 
-        return rows;
+    const rows = [];
+    const pagePromises = [];
+
+    for (let currentPage = 0; currentPage < dataTableReader.pageCount; currentPage++) {
+        pagePromises.push(dataTableReader.getPageAsync(currentPage));
     }
+
+    const pages = await Promise.all(pagePromises);
+
+    for (const dataTablePage of pages) {
+        rows.push(...convertToListOfNamedRows(dataTablePage));
+    }
+
+    await dataTableReader.releaseAsync();
+    
+    console.timeEnd('getSummaryDataTable');
+    return rows;
+}
+
 
     // Initializes the map
     function initializeMap() {
@@ -265,37 +268,28 @@
     /**
      * Renders county borders
      */
-    function renderCounties(michiganCounties) {
-        console.log("Entered renderCounties")
-        mapGroup.selectAll("*").remove();
+     function renderCounties(michiganCounties) {
+    console.log("Rendering counties...");
+    console.time("renderCounties");
 
-        mapGroup.selectAll(".county")
-            .data(michiganCounties)
-            .enter().append("path")
-            .attr("class", "county")
-            .attr("d", path)
-            .attr("id", d => `county-${d.properties.GEOID}`)
-            .on("click", clickedCounty)
-            .on("mouseover", function (event, d) {
-                d3.select(this)
-                    .classed("county-hover", true)
-                    .raise();
-                d3.select(".state").raise();
-                d3.selectAll(".circle").raise();
-                d3.selectAll(".center-dot").raise();
-                d3.selectAll(".dot").raise();
+    // Efficiently update counties using d3.join()
+    const counties = mapGroup.selectAll(".county")
+        .data(michiganCounties, d => d.properties.GEOID) // Use GEOID as unique key
+        .join(
+            enter => enter.append("path")
+                .attr("class", "county")
+                .attr("d", path)
+                .attr("id", d => `county-${d.properties.GEOID}`)
+                .on("click", clickedCounty)
+                .on("mouseover", (event, d) => requestAnimationFrame(() => showTooltip(event, d)))
+                .on("mousemove", (event, d) => requestAnimationFrame(() => showTooltip(event, d)))
+                .on("mouseout", hideTooltip),
+            update => update,
+            exit => exit.remove()
+        );
 
-                showTooltip(event, d);
-            })
-            .on("mousemove", function (event, d) {
-                showTooltip(event, d);
-            })
-            .on("mouseout", function (event, d) {
-                d3.select(this)
-                    .classed("county-hover", false);
-                hideTooltip();
-            });
-    }
+    console.timeEnd("renderCounties");
+}
 
     /**
      * Selects and updates the existing state border element.
@@ -316,77 +310,61 @@
     /**
      * Reloads and rerenders map nad calculations
      */
-    async function refreshData(circleGeoJSONs, radiusInKm, michiganState, worksheet) {
-        try {
-            console.log("Entered refresh data")
+     async function refreshData(circleGeoJSONs, radiusInKm, michiganState, worksheet) {
+    try {
+        console.log("Entered refreshData");
+        console.time("refreshData");
 
-            console.time("refreshData")
-            const [summaryData, encodingMap] = await Promise.all([
-                getSummaryDataTable(worksheet),
-                getEncodingMap(worksheet)
-            ]);
+        // Fetch summary data and encoding map in parallel
+        const [summaryData, encodingMap] = await Promise.all([
+            getSummaryDataTable(worksheet),
+            getEncodingMap(worksheet)
+        ]);
 
-            // Extract coordinate names once
-            const { x, y, x2, y2 } = encodingMap;
-            console.log(encodingMap)
-            const longitudeName = x['name'];
-            const latitudeName = y['name'];
-            const longitude2Name = x2['name'];
-            const latitude2Name = y2['name'];
+        const { x, y, x2, y2 } = encodingMap;
+        const longitudeName = x.name;
+        const latitudeName = y.name;
+        const longitude2Name = x2.name;
+        const latitude2Name = y2.name;
 
-            let [validCircleCoordinates, validDotCoordinates] = summaryData.reduce(
-                ([circleCoords, dotCoords], row) => {
-                    const lat = row[latitudeName]?._value;
-                    const lon = row[longitudeName]?._value;
-                    const lat2 = row[latitude2Name]?._value;
-                    const lon2 = row[longitude2Name]?._value;
+        // Extract and filter valid coordinates
+        const validCircleCoordinates = summaryData
+            .map(row => ({
+                lat: row[latitudeName]?._value,
+                lon: row[longitudeName]?._value
+            }))
+            .filter(({ lat, lon }) => isFinite(lat) && isFinite(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180);
 
-                    // Validate coordinates before adding them
-                    if (typeof lat === 'number' && typeof lon === 'number' && !isNaN(lat) && !isNaN(lon)) {
-                        if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
-                            circleCoords.push({ lat, lon });
-                        }
-                    }
-                    if (typeof lat2 === 'number' && typeof lon2 === 'number' && !isNaN(lat2) && !isNaN(lon2)) {
-                        if (lat2 >= -90 && lat2 <= 90 && lon2 >= -180 && lon2 <= 180) {
-                            dotCoords.push({ lat2, lon2 });
-                        }
-                    }
+        const validDotCoordinates = summaryData
+            .map(row => ({
+                lat2: row[latitude2Name]?._value,
+                lon2: row[longitude2Name]?._value
+            }))
+            .filter(({ lat2, lon2 }) => isFinite(lat2) && isFinite(lon2) && lat2 >= -90 && lat2 <= 90 && lon2 >= -180 && lon2 <= 180);
 
-                    return [circleCoords, dotCoords];
-                },
-                [[], []]
-            );
-            console.log("Line 360", validCircleCoordinates.length)
+        // Remove duplicate coordinates efficiently
+        const uniqueCircleCoordinates = [...new Map(validCircleCoordinates.map(item => [`${item.lat},${item.lon}`, item])).values()];
+        const uniqueDotCoordinates = [...new Map(validDotCoordinates.map(item => [`${item.lat2},${item.lon2}`, item])).values()];
 
+        console.timeEnd("refreshData");
+        console.log("Valid Circle Coordinates:", uniqueCircleCoordinates.length);
 
-            validCircleCoordinates = Array.from(
-                new Set(validCircleCoordinates.map(loc => JSON.stringify(loc)))
-            ).map(str => JSON.parse(str));
+        console.time("All scripts supposedly");
 
-            validDotCoordinates = Array.from(
-                new Set(validDotCoordinates.map(loc => JSON.stringify(loc)))
-            ).map(str => JSON.parse(str));
+        renderCircles(uniqueCircleCoordinates, uniqueDotCoordinates, radiusInKm);
 
-            console.timeEnd("refreshData")
-            console.log("Line 362", validCircleCoordinates[0], validCircleCoordinates.length)
+        // Generate GeoJSON circles
+        const circleGeoJSONs = uniqueCircleCoordinates.map(({ lat, lon }) =>
+            createCircleGeoJSON(lat, lon, radiusInKm)
+        );
 
+        calculateAreas(circleGeoJSONs, michiganState);
 
-
-            console.time("All scripts supposedly")
-            renderCircles(validCircleCoordinates, validDotCoordinates, radiusInKm);
-
-            const circleGeoJSONs = validCircleCoordinates.map(({ lat, lon }) =>
-                createCircleGeoJSON(lat, lon, radiusInKm)
-            );
-
-            calculateAreas(circleGeoJSONs, michiganState);
-            console.timeEnd("All scripts supposedly")
-        } catch (error) {
-            console.error("Error in refreshData:", error);
-        }
+        console.timeEnd("All scripts supposedly");
+    } catch (error) {
+        console.error("Error in refreshData:", error);
     }
-
+}
 
     /**
      * Processes Circle data
@@ -424,43 +402,50 @@
      * Calculates the total covered area of the circles
      */
 
-    function calculateAreas(circleGeoJSONs, michiganState) {
-        console.log("Entered calculate areas")
-        console.time("calculateAreas")
-        const worker = new Worker('worker.js');
+     function calculateAreas(circleGeoJSONs, michiganState) {
+    console.log("Entered calculateAreas");
+    console.time("calculateAreas");
 
-        // Send data to the worker
-        worker.postMessage({ circleGeoJSONs, michiganBoundary: michiganState });
-
-        // Handle messages from the worker
-        worker.onmessage = function (e) {
-            if (e.data.type === 'log') {
-                // Log messages from the worker
-                console.log(e.data.message);
-            } else if (e.data.type === 'results') {
-                const {
-                    totalCircleArea,
-                    totalIntersectionAreaBeforeUnioning,
-                    areaOutsideMap,
-                    finalNonOverlappingArea
-                } = e.data.results;
-
-                // Update Tableau parameters
-                updateTableauParameters(
-                    totalCircleArea,
-                    totalIntersectionAreaBeforeUnioning,
-                    areaOutsideMap,
-                    finalNonOverlappingArea
-                );
-            }
-        };
-
-        // Handle errors from the worker
-        worker.onerror = function (e) {
-            console.error('Worker error:', e.message);
-        };
-        console.timeEnd("calculateAreas")
+    if (!circleGeoJSONs || circleGeoJSONs.length === 0) {
+        console.warn("No circles to process.");
+        return;
     }
+
+    const worker = new Worker('worker.js');
+    worker.postMessage({ circleGeoJSONs, michiganBoundary: michiganState });
+
+    worker.onmessage = function (e) {
+        if (e.data.type === 'results') {
+            console.timeEnd("calculateAreas");
+            console.log("Worker finished processing:", e.data.results);
+
+            const {
+                totalCircleArea,
+                totalIntersectionAreaBeforeUnioning,
+                areaOutsideMap,
+                finalNonOverlappingArea
+            } = e.data.results;
+
+            console.log(`Total Circle Area: ${totalCircleArea} km²`);
+            console.log(`Overlap Area: ${totalIntersectionAreaBeforeUnioning} km²`);
+            console.log(`Area Outside Map: ${areaOutsideMap} km²`);
+            console.log(`Final Non-Overlapping Area: ${finalNonOverlappingArea} km²`);
+
+            updateTableauParameters(
+                totalCircleArea,
+                totalIntersectionAreaBeforeUnioning,
+                areaOutsideMap,
+                finalNonOverlappingArea
+            );
+        } else if (e.data.type === 'log') {
+            console.log(e.data.message);
+        }
+    };
+
+    worker.onerror = function (e) {
+        console.error("Worker error:", e.message);
+    };
+}
 
     /**
      * Renders the circle
