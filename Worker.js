@@ -109,7 +109,7 @@ importScripts(
 );
 
 self.onmessage = function (e) {
-    let { circleGeoJSONs, michiganBoundary } = e.data;
+    let {circleGeoJSONs, michiganBoundary} = e.data;
 
     function batchUnion(features, batchSize = 10) {
         let result = null;
@@ -141,7 +141,7 @@ self.onmessage = function (e) {
     const tree = new RBush();
     circleGeoJSONs.forEach((circle, i) => {
         const bbox = turf.bbox(circle);
-        tree.insert({ minX: bbox[0], minY: bbox[1], maxX: bbox[2], maxY: bbox[3], id: i });
+        tree.insert({minX: bbox[0], minY: bbox[1], maxX: bbox[2], maxY: bbox[3], id: i});
     });
 
     const circleIntersectionsInfo = [];
@@ -156,7 +156,7 @@ self.onmessage = function (e) {
                 const intersection = turf.intersect(circle, circleGeoJSONs[candidate.id]);
                 if (intersection) {
                     const intersectionArea = turf.area(intersection) / 1e6;
-                    circleIntersectionsInfo.push({ circle1: i, circle2: candidate.id, area: intersectionArea });
+                    circleIntersectionsInfo.push({circle1: i, circle2: candidate.id, area: intersectionArea});
                 }
             }
         });

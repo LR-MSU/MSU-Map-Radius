@@ -7,7 +7,7 @@
     <author name="Luiz Ramos" email="luiz.ramos@innovalytix.com" organization="Innovalytix" website="https://www.innovalytix.com"/>
     <min-api-version>1.11</min-api-version>
     <source-location>
-      <url>http://localhost:81/MSU-Map-Radius.html</url>
+      <url>http://localhost/MSU-Map-Radius.html</url>
     </source-location>
     <icon/>
     <encoding id="x">
