@@ -23,7 +23,7 @@ self.onmessage = function (event) {
         if (hiddenCircleIndices.has(index)) return;
 
         // Get the bounding box of the circle
-        const bbox = turf.bbox(turf.buffer(turf.point([circle.lon, circle.lat]), 50, {units: 'miles'}));
+        const bbox = turf.bbox(turf.buffer(turf.point([circle.lon, circle.lat]), 5, {units: 'miles'}));
 
         // Query RBush for nearby circles
         const nearbyCircles = tree.search({minX: bbox[0], minY: bbox[1], maxX: bbox[2], maxY: bbox[3]});
@@ -34,7 +34,7 @@ self.onmessage = function (event) {
                 const to = turf.point([circleCoordinates[neighbor.id].lon, circleCoordinates[neighbor.id].lat]);
                 const distance = turf.distance(from, to, {units: 'miles'});
 
-                if (distance <= 50) {
+                if (distance <= 5) {
                     hiddenCircleIndices.add(neighbor.id);
                 }
             }
@@ -88,40 +88,37 @@ self.onmessage = function (event) {
     console.log("took dot length", dotCoordinates.length);
     /////////////////////////Rank1 ///////////////////////////////////
 
-
-    //  // Insert all dots into RBush for fast spatial lookups
+    // // Insert all dots into RBush
     dotCoordinates.forEach((dot, index) => {
-        const bbox = turf.bbox(turf.point([dot.lon2, dot.lat2]));
+        const bbox = turf.bbox(turf.point([dot.lon2, dot.lat2])); // Get bounding box
         tree.insert({minX: bbox[0], minY: bbox[1], maxX: bbox[2], maxY: bbox[3], id: index});
     });
-
-    // Use a Typed Array for fast lookups instead of Set()
-
-
-    // Array to store logs for batch logging
-    const logMessages = [];
-
-    // Optimized loop: Query only nearby dots using RBush
     dotCoordinates.forEach((dot, index) => {
-        if (hiddenDotIndices[index]) return;
+        if (hiddenDotIndices.has(index)) return;
 
-        // Get nearby dots (~5 miles radius)
-        const bbox = turf.bbox(turf.buffer(turf.point([dot.lon2, dot.lat2]), 50, {units: 'miles'}));
-        const nearbyDots = tree.search({minX: bbox[0], minY: bbox[1], maxX: bbox[2], maxY: bbox[3]});
+        // Get the bounding box of the dots
+        const bbox = turf.bbox(turf.buffer(turf.point([dot.lon2, dot.lat2]), 5, {units: 'miles'}));
 
-        nearbyDots.forEach((neighbor) => {
-            if (neighbor.id !== index && !hiddenDotIndices[neighbor.id]) {
-                const from = turf.point([dot.lon2, dot.lat2]);
-                const to = turf.point([dotCoordinates[neighbor.id].lon2, dotCoordinates[neighbor.id].lat2]);
-                const distance = turf.distance(from, to, {units: 'miles'});
+        // Query RBush for nearby dots
+        const nearbyDot = tree.search({minX: bbox[0], minY: bbox[1], maxX: bbox[2], maxY: bbox[3]});
 
-                if (distance <= 50) {
-                    hiddenDotIndices[neighbor.id] = 1;
-                    logMessages.push(`Hiding dot ${neighbor.id} (too close to ${index})`);
+        nearbyDot.forEach((neighbor) => {
+            if (neighbor.id !== index && !hiddenDotIndices.has(neighbor.id)) {
+                try {
+                    const from = turf.point([dot.lon2, dot.lat2]);
+                    const to = turf.point([dotCoordinates[neighbor.id].lon2, dotCoordinates[neighbor.id].lat2]);
+                    const distance = turf.distance(from, to, {units: 'miles'});
+
+                    if (distance <= 5) {
+                        hiddenDotIndices.add(neighbor.id);
+                    }
+                } catch (e) {
+                    console.log("test")
                 }
             }
         });
     });
+
     ////////////////////////////Rank2/////////////////////////////////////////
 
     // dotCoordinates.forEach((circleA, indexA) => {

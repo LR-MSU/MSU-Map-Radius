@@ -418,7 +418,6 @@
     /**
      * Calculates the total covered area of the circles
      */
-
     function calculateAreas(circleGeoJSONs, michiganState) {
         console.log("Entered calculateAreas");
         console.time("calculateAreas");
@@ -500,9 +499,9 @@
                 .append("path")
                 .attr("class", "circle")
                 .attr("d", d => d.path)
-                .attr("fill", "grey")
-                .style("opacity", 0.5) // Use worker results
-                .attr("stroke", "grey")
+                .attr("fill", "#d3d3d3")
+                .style("opacity", 1) // Use worker results
+                .attr("stroke", "#d3d3d3")
                 .attr("stroke-width", 0.5)
                 .style("pointer-events", "none");
 
@@ -568,11 +567,13 @@
             overlapAreaParameter.changeValueAsync(parseFloat(totalIntersectionAreaBeforeUnioning.toFixed(2)));
             outsideMapAreaParameter.changeValueAsync(parseFloat(areaOutsideMap.toFixed(2)));
             finalAreaParameter.changeValueAsync(parseFloat(finalNonOverlappingArea.toFixed(2)));
-
+            /*
             totalAreaParameter.changeParameterValueAsync(parseFloat(totalCircleArea.toFixed(2)));
             overlapAreaParameter.changeParameterValueAsync(parseFloat(totalIntersectionAreaBeforeUnioning.toFixed(2)));
             outsideMapAreaParameter.changeParameterValueAsync(parseFloat(areaOutsideMap.toFixed(2)));
             finalAreaParameter.changeParameterValueAsync(parseFloat(finalNonOverlappingArea.toFixed(2)));
+            */
+
         });
 
     }
