@@ -30,12 +30,16 @@ self.onmessage = function (event) {
 
         nearbyCircles.forEach((neighbor) => {
             if (neighbor.id !== index && !hiddenCircleIndices.has(neighbor.id)) {
-                const from = turf.point([circle.lon, circle.lat]);
-                const to = turf.point([circleCoordinates[neighbor.id].lon, circleCoordinates[neighbor.id].lat]);
-                const distance = turf.distance(from, to, {units: 'miles'});
+                try {
+                    const from = turf.point([circle.lon, circle.lat]);
+                    const to = turf.point([circleCoordinates[neighbor.id].lon, circleCoordinates[neighbor.id].lat]);
+                    const distance = turf.distance(from, to, {units: 'miles'});
 
-                if (distance <= 5) {
-                    hiddenCircleIndices.add(neighbor.id);
+                    if (distance <= 5) {
+                        hiddenCircleIndices.add(neighbor.id);
+                    }
+                } catch (e) {
+                    console.log("Error with circle buffer")
                 }
             }
         });
@@ -113,7 +117,7 @@ self.onmessage = function (event) {
                         hiddenDotIndices.add(neighbor.id);
                     }
                 } catch (e) {
-                    console.log("test")
+                    console.log("Error with dot buffer")
                 }
             }
         });
