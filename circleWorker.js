@@ -6,12 +6,10 @@ self.onmessage = function (event) {
 
     const hiddenCircleIndices = new Set();
     const hiddenDotIndices = new Set();
-// 
+
     // Perform distance calculations to hide circles within 5 miles from eachother
     const PstartTime = performance.now()
 
-
-    ///////////////////////////////////////Rank1/////////////////////////////
     const tree = new RBush();
 
     // // Insert all circles into RBush
@@ -45,58 +43,18 @@ self.onmessage = function (event) {
         });
     });
 
-
-    // /////////////////////Rank 2/////////////////////////////////////
-    // console.log("took circle length",circleCoordinates.length);
-    // circleCoordinates.forEach((circleA, indexA) => {
-    //     for (let indexB = indexA + 1; indexB < circleCoordinates.length; indexB++) {
-    //         const circleB = circleCoordinates[indexB];
-
-    //         const from = turf.point([circleA.lon, circleA.lat]);
-    //         const to = turf.point([circleB.lon, circleB.lat]);
-    //         const distance = turf.distance(from, to, { units: 'miles' });
-
-    //         if (distance <= 5) {
-    //             hiddenCircleIndices.add(indexB);
-    //         }
-    //     }
-    // });
-
-
-    //////////////////////////////OLD CODE////////////////////////////////////
-
-    // circleCoordinates.forEach((circleA, indexA) => {
-    //     if (hiddenCircleIndices.has(indexA)) return;
-
-    //     circleCoordinates.forEach((circleB, indexB) => {
-    //         if (indexA === indexB || hiddenCircleIndices.has(indexB)) return;
-
-    //         const from = turf.point([circleA.lon, circleA.lat]);
-    //         const to = turf.point([circleB.lon, circleB.lat]);
-    //         const distance = turf.distance(from, to, { units: 'miles' });
-
-    //         if (distance <= 5) {
-    //             hiddenCircleIndices.add(indexB);
-    //             console.log("distance", distance, indexB, indexA, circleA.lon, circleA.lat, circleB.lon, circleB.lat)
-    //         }
-    //     });
-    // });
-
     const PendTime = performance.now();
     const executionTime = PendTime - PstartTime;
     console.log(`circleCoordinates.forEach in CircleWorker took ${executionTime} milliseconds to execute.`);
 
-
-    //////////////////////////////
     const MstartTime = performance.now()
-    console.log("took dot length", dotCoordinates.length);
-    /////////////////////////Rank1 ///////////////////////////////////
 
     // // Insert all dots into RBush
     dotCoordinates.forEach((dot, index) => {
         const bbox = turf.bbox(turf.point([dot.lon2, dot.lat2])); // Get bounding box
         tree.insert({minX: bbox[0], minY: bbox[1], maxX: bbox[2], maxY: bbox[3], id: index});
     });
+
     dotCoordinates.forEach((dot, index) => {
         if (hiddenDotIndices.has(index)) return;
 
@@ -123,46 +81,9 @@ self.onmessage = function (event) {
         });
     });
 
-    ////////////////////////////Rank2/////////////////////////////////////////
-
-    // dotCoordinates.forEach((circleA, indexA) => {
-    //     if (hiddenDotIndices.has(indexA)) return;
-
-    //     for (let indexB = indexA + 1; indexB < dotCoordinates.length; indexB++) {
-    //         if (hiddenDotIndices.has(indexB)) continue;
-
-    //         const circleB = dotCoordinates[indexB];
-
-    //         const from = turf.point([circleA.lon2, circleA.lat2]);
-    //         const to = turf.point([circleB.lon2, circleB.lat2]);
-    //         const distance = turf.distance(from, to, { units: 'miles' });
-
-    //         if (distance <= 5) {
-    //             hiddenDotIndices.add(indexB);
-    //         }
-    //     }
-    // });
-
-    /////////////////////////OLD CODE///////////////////////////////////////////////////
-    // dotCoordinates.forEach((circleA, indexA) => {
-    //     if (hiddenDotIndices.has(indexA)) return;
-
-    //     dotCoordinates.forEach((circleB, indexB) => {
-    //         if (indexA === indexB || hiddenDotIndices.has(indexB)) return;
-
-    //         const from = turf.point([circleA.lon2, circleA.lat2]);
-    //         const to = turf.point([circleB.lon2, circleB.lat2]);
-    //         const distance = turf.distance(from, to, { units: 'miles' });
-
-    //         if (distance <= 5) {
-    //             hiddenDotIndices.add(indexB);
-    //         }
-    //     });
-    // });
     const MendTime = performance.now()
     const MexecutionTime = MendTime - MstartTime
     console.log(`dotCoordinates.forEach in CircleWorker took ${MexecutionTime} milliseconds to execute.`);
-
 
     // Send results back to the main thread
     self.postMessage({
