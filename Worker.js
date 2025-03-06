@@ -10,7 +10,7 @@ importScripts(
  */
 self.onmessage = function (e) {
     try {
-        let {circleGeoJSONs, michiganBoundary} = e.data;
+        let {dotGeoJSONs, michiganBoundary} = e.data;
 
         function batchUnion(features, batchSize = 10) {
             let result = null;
@@ -23,7 +23,7 @@ self.onmessage = function (e) {
         }
 
         console.time("Union Processing");
-        const unionedCircles = batchUnion(circleGeoJSONs, 10);
+        const unionedCircles = batchUnion(dotGeoJSONs, 10);
         console.timeEnd("Union Processing");
 
         let totalCircleArea = unionedCircles ? turf.area(unionedCircles) / 1e6 : 0; // Convert to km²
@@ -40,13 +40,13 @@ self.onmessage = function (e) {
 
         console.time("RBush Intersection Calculation");
         const tree = new RBush();
-        circleGeoJSONs.forEach((circle, i) => {
+        dotGeoJSONs.forEach((circle, i) => {
             const bbox = turf.bbox(circle);
             tree.insert({minX: bbox[0], minY: bbox[1], maxX: bbox[2], maxY: bbox[3], id: i});
         });
 
         const circleIntersectionsInfo = [];
-        circleGeoJSONs.forEach((circle, i) => {
+        dotGeoJSONs.forEach((circle, i) => {
             const bbox = turf.bbox(circle);
             const potentialIntersections = tree.search({
                 minX: bbox[0], minY: bbox[1], maxX: bbox[2], maxY: bbox[3]
@@ -54,7 +54,7 @@ self.onmessage = function (e) {
 
             potentialIntersections.forEach((candidate) => {
                 if (candidate.id > i) {
-                    const intersection = turf.intersect(circle, circleGeoJSONs[candidate.id]);
+                    const intersection = turf.intersect(circle, dotGeoJSONs[candidate.id]);
                     if (intersection) {
                         const intersectionArea = turf.area(intersection) / 1e6;
                         circleIntersectionsInfo.push({circle1: i, circle2: candidate.id, area: intersectionArea});

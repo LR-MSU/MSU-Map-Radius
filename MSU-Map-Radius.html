@@ -329,33 +329,50 @@
             const {detail, x, y, x2, y2} = encodingMap;
 
             const detailName = detail.name;
+
+            // New (ie: validDotCoordinates)
             const longitudeName = x.name;
             const latitudeName = y.name;
+
+            // Old (ie: validCircleCoordinates)
             const longitude2Name = x2.name;
             const latitude2Name = y2.name;
 
             // Extract and filter valid coordinates
-            const validCircleCoordinates = summaryData
+            const validDotCoordinates = summaryData
                 .map(row => ({
                     lat: row[latitudeName]?._value,
                     lon: row[longitudeName]?._value,
                     id: row[detailName]?._value
                 }))
                 .filter(({lat, lon}) =>
-                    isFinite(lat) && isFinite(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180
+                    !isNaN(lat) &&
+                    !isNaN(lon) &&
+                    isFinite(lat) &&
+                    isFinite(lon) &&
+                    lat >= -90 &&
+                    lat <= 90 &&
+                    lon >= -180 &&
+                    lon <= 180
                 );
 
-            const validDotCoordinates = summaryData
+            let validCircleCoordinates = summaryData
                 .map(row => ({
                     lat2: row[latitude2Name]?._value,
                     lon2: row[longitude2Name]?._value,
                     id: row[detailName]?._value
                 }))
                 .filter(({lat2, lon2}) =>
-                    isFinite(lat2) && isFinite(lon2) && lat2 >= -90 && lat2 <= 90 && lon2 >= -180 && lon2 <= 180
+                    !isNaN(lat2) &&
+                    !isNaN(lon2) &&
+                    isFinite(lat2) &&
+                    isFinite(lon2) &&
+                    lat2 >= -90 &&
+                    lat2 <= 90 &&
+                    lon2 >= -180 &&
+                    lon2 <= 180
                 );
 
-            // 1. Add existence flags using Set for O(1) lookups
             const priorIds = new Set(validCircleCoordinates.map(item => item.id));
             validDotCoordinates.forEach(item => {
                 item.existedInPrior = priorIds.has(item.id);
@@ -367,12 +384,12 @@
             });
 
             // 2. Create unique coordinates (existing logic)
-            const uniqueCircleCoordinates = [...new Map(
-                validCircleCoordinates.map(item => [`${item.lat},${item.lon}`, item])
+            const uniqueDotCoordinates = [...new Map(
+                validDotCoordinates.map(item => [`${item.lat},${item.lon}`, item])
             ).values()];
 
-            const uniqueDotCoordinates = [...new Map(
-                validDotCoordinates.map(item => [`${item.lat2},${item.lon2}`, item])
+            const uniqueCircleCoordinates = [...new Map(
+                validCircleCoordinates.map(item => [`${item.lat2},${item.lon2}`, item])
             ).values()];
 
             console.timeEnd("refreshData");
@@ -383,11 +400,11 @@
             renderCircles(uniqueCircleCoordinates, uniqueDotCoordinates, radiusInKm);
 
             // Generate GeoJSON circles
-            const circleGeoJSONs = uniqueCircleCoordinates.map(({lat, lon}) =>
+            const dotGeoJSONs = uniqueDotCoordinates.map(({lat, lon}) =>
                 createCircleGeoJSON(lat, lon, radiusInKm)
             );
 
-            calculateAreas(circleGeoJSONs, michiganState);
+            calculateAreas(dotGeoJSONs, michiganState);
 
             console.timeEnd("All scripts supposedly");
         } catch (error) {
@@ -430,17 +447,17 @@
     /**
      * Calculates the total covered area of the circles
      */
-    function calculateAreas(circleGeoJSONs, michiganState) {
-        console.log("Entered calculateAreas");
+    function calculateAreas(dotGeoJSONs, michiganState) {
+        console.log("Entered calculateAreas", dotGeoJSONs);
         console.time("calculateAreas");
 
-        if (!circleGeoJSONs || circleGeoJSONs.length === 0) {
+        if (!dotGeoJSONs || dotGeoJSONs.length === 0) {
             console.warn("No circles to process.");
             return;
         }
 
         const worker = new Worker('Worker.js');
-        worker.postMessage({circleGeoJSONs, michiganBoundary: michiganState});
+        worker.postMessage({dotGeoJSONs, michiganBoundary: michiganState});
 
         worker.onmessage = function (e) {
             if (e.data.type === 'results') {
@@ -487,7 +504,7 @@
         console.timeEnd('446-453 Send data and recieve back data from worker')
         console.time('Worker visual response')
 
-        circleCoordinates = circleCoordinates.map(d => ({
+        dotCoordinates = dotCoordinates.map(d => ({
             ...d,
             projected: projection([d.lon, d.lat]),
             path: circlePath(d.lat, d.lon, radiusInKm, projection),
@@ -500,9 +517,11 @@
             closed: "#59504e", // Red for closed
             same: "#4bc6b3"    // Blue for existing
         };
+        console.log("test")
 
+        // Big grey circle
         mapGroup.selectAll(".circle")
-            .data(circleCoordinates.filter(d => !d.closedInNew)) // Only show non-closed
+            .data(dotCoordinates.filter(d => !d.closedInNew)) // Only show non-closed
             .join("path")
             .attr("class", "circle")
             .attr("d", d => d.path)
@@ -511,39 +530,44 @@
             .attr("stroke", "#d3d3d3")
             .attr("stroke-width", 0.5)
             .style("pointer-events", "none");
+        console.log("test2")
 
+        // NOTE: Prior year. *NOT* the center of the grey circle
         mapGroup.selectAll(".center-dot")
             .data(circleCoordinates)
             .join("circle")
             .attr("class", "center-dot")
-            .attr("cx", d => d.projected[0])
-            .attr("cy", d => d.projected[1])
+            .attr("d", d => d.path)
+            // .attr("cx", d => d.projected[0])
+            // .attr("cy", d => d.projected[1])
             .attr("r", 3)
             .attr("fill", d => d.closedInNew ? statusColors.closed : statusColors.same)
             .style("opacity", 0.75)
             .attr("stroke", "#898989")
             .attr("stroke-width", 0.5);
-
+        console.log("test3")
         // TODO: Make sure this year and last year are correct in terms of dot type
 
+        // Center of the grey circle
         mapGroup.selectAll(".dot")
             .data(dotCoordinates, d => d.id)
             .join(
                 enter => enter.append("circle")
                     .attr("class", "dot")
-                    .attr("cx", d => projection([d.lon2, d.lat2])[0])
-                    .attr("cy", d => projection([d.lon2, d.lat2])[1])
+                    .attr("cx", d => projection([d.lon, d.lat])[0])
+                    .attr("cy", d => projection([d.lon, d.lat])[1])
                     .attr("r", 3)
                     .attr("stroke-width", .5)
                     .attr("stroke", "#898989"),
                 update => update
-                    .attr("cx", d => projection([d.lon2, d.lat2])[0])
-                    .attr("cy", d => projection([d.lon2, d.lat2])[1]),
+                    .attr("cx", d => projection([d.lon, d.lat])[0])
+                    .attr("cy", d => projection([d.lon, d.lat])[1]),
                 exit => exit.remove()
             )
             .attr("fill", d =>
                 d.existedInPrior ? statusColors.same : statusColors.new
             );
+        console.log("test4")
         console.timeEnd('Worker visual response')
         hideLoading();
     }
@@ -570,10 +594,10 @@
                 parseFloat(finalNonOverlappingArea)
             )*/
 
-            totalAreaParameter.changeValueAsync(parseFloat(totalCircleArea.toFixed(2)));
-            overlapAreaParameter.changeValueAsync(parseFloat(totalIntersectionAreaBeforeUnioning.toFixed(2)));
-            outsideMapAreaParameter.changeValueAsync(parseFloat(areaOutsideMap.toFixed(2)));
-            finalAreaParameter.changeValueAsync(parseFloat(finalNonOverlappingArea.toFixed(2)));
+            totalAreaParameter.changeValueAsync(parseFloat((totalCircleArea * 0.386102).toFixed(2)));
+            overlapAreaParameter.changeValueAsync(parseFloat((totalIntersectionAreaBeforeUnioning * 0.386102).toFixed(2)));
+            outsideMapAreaParameter.changeValueAsync(parseFloat((areaOutsideMap * 0.386102).toFixed(2)));
+            finalAreaParameter.changeValueAsync(parseFloat((finalNonOverlappingArea * 0.386102).toFixed(2)));
 
         });
 

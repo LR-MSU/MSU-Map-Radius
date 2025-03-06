@@ -18,10 +18,12 @@ Detailed features:
 
 Parameters populated:
 1. **FinalArea**
-   <br /> Area covered by map excluding overlaps, and area covered that goes outside the coast/Michigan. *This is likely the value you will need.*
+<br /> Area covered by map excluding overlaps, and area covered that goes outside the coast/Michigan. *This is likely the value you will need.*
 2. **TotalArea**
 <br /> Total area covered by all radius's, *including* overlaps.
 2. **OverlapArea**
 <br /> Amount of area that overlaps between the radius's of locations.
 3. **OutsideMapArea**
 <br /> Area covered that's outside the map.
+
+Please note: All areas are in mi². The extension is not able to account for small lakes (all lakes smaller than, and including Houghton Lake, which are not part of the Great Lakes System), and will count them as a part of the land area covered.
