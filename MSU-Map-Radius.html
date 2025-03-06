@@ -278,7 +278,7 @@
         console.time("renderCounties");
 
         // Efficiently update counties using d3.join()
-        const counties = mapGroup.selectAll(".county")
+        mapGroup.selectAll(".county")
             .data(michiganCounties, d => d.properties.GEOID) // Use GEOID as unique key
             .join(
                 enter => enter.append("path")
@@ -289,7 +289,7 @@
                     .on("mouseover", (event, d) => requestAnimationFrame(() => showTooltip(event, d)))
                     .on("mousemove", (event, d) => requestAnimationFrame(() => showTooltip(event, d)))
                     .on("mouseout", hideTooltip),
-                update => update,
+                update => update.attr("d", path),
                 exit => exit.remove()
             );
 
@@ -597,9 +597,6 @@
     function zoomed(event) {
         mapGroup.attr("transform", event.transform);
     }
-
-    // Debounce timer variable
-    let tooltipTimeout;
 
     /**
      * Display tooltip with county information.
