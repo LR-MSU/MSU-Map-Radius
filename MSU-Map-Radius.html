@@ -515,9 +515,9 @@
         // console.log("Line 474", circleCoordinates.length, dotCoordinates.length, circleCoordinates[0])
 
         const statusColors = {
-            new: "#ff55ff",    // Green for new
-            closed: "#59504e", // Dark grey for closed
-            same: "#4bc6b3"    // Teal for existing
+            new: "#684183",
+            closed: "#ffffff",
+            same: "#59c18f"
         };
 
         // Big grey circle
@@ -542,7 +542,7 @@
                     .attr("cy", d => projection([d.lon, d.lat])[1])
                     .attr("r", 3)
                     .attr("stroke-width", .5)
-                    .attr("stroke", "#898989"),
+                    .attr("stroke", "#555555"),
                 update => update
                     .attr("cx", d => projection([d.lon, d.lat])[0])
                     .attr("cy", d => projection([d.lon, d.lat])[1]),
@@ -563,7 +563,7 @@
             .attr("r", 3)
             .attr("fill", d => d.closedInNew ? statusColors.closed : statusColors.same)
             .style("opacity", 0.75)
-            .attr("stroke", "#898989")
+            .attr("stroke", "#555555")
             .attr("stroke-width", 0.5);
 
         console.timeEnd('Worker visual response')
