@@ -26,4 +26,4 @@ Parameters populated:
 3. **OutsideMapArea**
 <br /> Area covered that's outside the map.
 
-Please note: All areas are in mi². The extension is not able to account for small lakes (all lakes smaller than, and including Houghton Lake, which are not part of the Great Lakes System), and will count them as a part of the land area covered.
+**Please note**: All areas are in mi². The extension is not able to account for small lakes (all lakes smaller than, and including Houghton Lake, which are not part of the Great Lakes System), and will count them as a part of the land area covered.
