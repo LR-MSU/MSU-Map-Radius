@@ -326,7 +326,7 @@
                 getEncodingMap(worksheet)
             ]);
 
-            const { detail, x, y, x2, y2 } = encodingMap;
+            const {detail, x, y, x2, y2} = encodingMap;
 
             const detailName = detail.name;
             const longitudeName = x.name;
@@ -341,7 +341,7 @@
                     lon: row[longitudeName]?._value,
                     id: row[detailName]?._value
                 }))
-                .filter(({ lat, lon }) =>
+                .filter(({lat, lon}) =>
                     isFinite(lat) && isFinite(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180
                 );
 
@@ -351,7 +351,7 @@
                     lon2: row[longitude2Name]?._value,
                     id: row[detailName]?._value
                 }))
-                .filter(({ lat2, lon2 }) =>
+                .filter(({lat2, lon2}) =>
                     isFinite(lat2) && isFinite(lon2) && lat2 >= -90 && lat2 <= 90 && lon2 >= -180 && lon2 <= 180
                 );
 
@@ -376,7 +376,7 @@
             ).values()];
 
             console.timeEnd("refreshData");
-            console.log("Valid Circle Coordinates:", uniqueCircleCoordinates.length);
+            //console.log("Valid Circle Coordinates:", uniqueCircleCoordinates.length);
 
             console.time("All scripts supposedly");
 
@@ -478,86 +478,74 @@
     /**
      * Renders the circle
      */
-
     function renderCircles(circleCoordinates, dotCoordinates, radiusInKm) {
         console.log("Entered rendercircles")
         console.time('446-453 Send data and recieve back data from worker')
         console.time('447- 498 Start to termination of circle worker')
-        const worker = new Worker('circleWorker.js');
 
-        // console.log("Line 465", circleCoordinates.length, dotCoordinates.length)
 
-        // Send data to the worker
-        worker.postMessage({circleCoordinates, dotCoordinates});
+        console.timeEnd('446-453 Send data and recieve back data from worker')
+        console.time('Worker visual response')
 
-        // Listen for results from the worker
-        worker.onmessage = function (event) {
-            const {hiddenCircleIndices, hiddenDotIndices} = event.data;
-            console.timeEnd('446-453 Send data and recieve back data from worker')
-            console.time('Worker visual response')
+        circleCoordinates = circleCoordinates.map(d => ({
+            ...d,
+            projected: projection([d.lon, d.lat]),
+            path: circlePath(d.lat, d.lon, radiusInKm, projection),
+        }));
 
-            circleCoordinates = circleCoordinates.filter((_, i) => !hiddenCircleIndices.includes(i)).map(d => ({
-                ...d,
-                projected: projection([d.lon, d.lat]),
-                path: circlePath(d.lat, d.lon, radiusInKm, projection),
-            }));
+        // console.log("Line 474", circleCoordinates.length, dotCoordinates.length, circleCoordinates[0])
 
-            // console.log("Line 474", circleCoordinates.length, dotCoordinates.length, circleCoordinates[0])
-
-            const statusColors = {
-                new: "#ff55ff",    // Green for new
-                closed: "#59504e", // Red for closed
-                same: "#4bc6b3"    // Blue for existing
-            };
-
-            const visibleDots = dotCoordinates.filter((_, i) => !hiddenDotIndices.includes(i));
-
-            mapGroup.selectAll(".circle")
-                .data(circleCoordinates.filter(d => !d.closedInNew)) // Only show non-closed
-                .join("path")
-                .attr("class", "circle")
-                .attr("d", d => d.path)
-                .attr("fill", "#d3d3d3")
-                .style("opacity", 1)
-                .attr("stroke", "#d3d3d3")
-                .attr("stroke-width", 0.5)
-                .style("pointer-events", "none");
-
-            mapGroup.selectAll(".center-dot")
-                .data(circleCoordinates)
-                .join("circle")
-                .attr("class", "center-dot")
-                .attr("cx", d => d.projected[0])
-                .attr("cy", d => d.projected[1])
-                .attr("r", 3)
-                .attr("fill", d => d.closedInNew ? statusColors.closed : statusColors.same)
-                .style("opacity", 0.75)
-                .attr("stroke", "#898989")
-                .attr("stroke-width", 0.5);
-            // TODO: Make sure this year and last year are correct in terms of dot type
-            mapGroup.selectAll(".dot")
-                .data(visibleDots, d => d.id)
-                .join(
-                    enter => enter.append("circle")
-                        .attr("class", "dot")
-                        .attr("cx", d => projection([d.lon2, d.lat2])[0])
-                        .attr("cy", d => projection([d.lon2, d.lat2])[1])
-                        .attr("r", 3)
-                        .attr("stroke-width", .5)
-                        .attr("stroke", "#898989"),
-                    update => update,
-                    exit => exit.remove()
-                )
-                .attr("fill", d =>
-                    d.existedInPrior ? statusColors.same : statusColors.new
-                );
-
-            console.timeEnd('Worker visual response')
-            hideLoading();
-            // Terminate the worker after use
-            worker.terminate();
-            console.timeEnd('447- 498 Start to termination of circle worker')
+        const statusColors = {
+            new: "#ff55ff",    // Green for new
+            closed: "#59504e", // Red for closed
+            same: "#4bc6b3"    // Blue for existing
         };
+
+        mapGroup.selectAll(".circle")
+            .data(circleCoordinates.filter(d => !d.closedInNew)) // Only show non-closed
+            .join("path")
+            .attr("class", "circle")
+            .attr("d", d => d.path)
+            .attr("fill", "#d3d3d3")
+            .style("opacity", 1)
+            .attr("stroke", "#d3d3d3")
+            .attr("stroke-width", 0.5)
+            .style("pointer-events", "none");
+
+        mapGroup.selectAll(".center-dot")
+            .data(circleCoordinates)
+            .join("circle")
+            .attr("class", "center-dot")
+            .attr("cx", d => d.projected[0])
+            .attr("cy", d => d.projected[1])
+            .attr("r", 3)
+            .attr("fill", d => d.closedInNew ? statusColors.closed : statusColors.same)
+            .style("opacity", 0.75)
+            .attr("stroke", "#898989")
+            .attr("stroke-width", 0.5);
+
+        // TODO: Make sure this year and last year are correct in terms of dot type
+
+        mapGroup.selectAll(".dot")
+            .data(dotCoordinates, d => d.id)
+            .join(
+                enter => enter.append("circle")
+                    .attr("class", "dot")
+                    .attr("cx", d => projection([d.lon2, d.lat2])[0])
+                    .attr("cy", d => projection([d.lon2, d.lat2])[1])
+                    .attr("r", 3)
+                    .attr("stroke-width", .5)
+                    .attr("stroke", "#898989"),
+                update => update
+                    .attr("cx", d => projection([d.lon2, d.lat2])[0])
+                    .attr("cy", d => projection([d.lon2, d.lat2])[1]),
+                exit => exit.remove()
+            )
+            .attr("fill", d =>
+                d.existedInPrior ? statusColors.same : statusColors.new
+            );
+        console.timeEnd('Worker visual response')
+        hideLoading();
     }
 
     /**

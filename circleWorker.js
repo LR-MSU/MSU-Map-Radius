@@ -1,7 +1,17 @@
-importScripts('https://cdnjs.cloudflare.com/ajax/libs/Turf.js/6.5.0/turf.min.js', 'https://cdn.jsdelivr.net/npm/rbush@4.0.1/rbush.min.js');
+importScripts(
+    'https://cdnjs.cloudflare.com/ajax/libs/Turf.js/6.5.0/turf.min.js',
+    'https://cdn.jsdelivr.net/npm/rbush@4.0.1/rbush.min.js'
+);
 
+
+/**
+ * Hides dots within certain closeness.
+ *
+ * NOTE 3/5/2025: Currently unused
+ *
+ * @param {MessageEvent} event - The message event containing data sent from the main thread.
+ */
 self.onmessage = function (event) {
-
     const {circleCoordinates, dotCoordinates} = event.data;
 
     const hiddenCircleIndices = new Set();

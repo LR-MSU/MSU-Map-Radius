@@ -1,8 +1,13 @@
 importScripts(
     'https://cdnjs.cloudflare.com/ajax/libs/Turf.js/6.5.0/turf.min.js',
-    'https://cdn.jsdelivr.net/npm/rbush@4.0.1/rbush.min.js' // Import RBush
+    'https://cdn.jsdelivr.net/npm/rbush@4.0.1/rbush.min.js'
 );
 
+/**
+ * Does the mathematics for the parameters.
+ *
+ * @param {MessageEvent} e - The message event containing data sent from the main thread.
+ */
 self.onmessage = function (e) {
     try {
         let {circleGeoJSONs, michiganBoundary} = e.data;
