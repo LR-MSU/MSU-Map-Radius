@@ -8,7 +8,7 @@ self.onmessage = function (event) {
     const hiddenDotIndices = new Set();
 
     // Perform distance calculations to hide circles within 5 miles from eachother
-    const PstartTime = performance.now()
+    // const PstartTime = performance.now()
 
     const tree = new RBush();
 
@@ -43,9 +43,9 @@ self.onmessage = function (event) {
         });
     });
 
-    const PendTime = performance.now();
-    const executionTime = PendTime - PstartTime;
-    console.log(`circleCoordinates.forEach in CircleWorker took ${executionTime} milliseconds to execute.`);
+    // const PendTime = performance.now();
+    // const executionTime = PendTime - PstartTime;
+    // console.log(`circleCoordinates.forEach in CircleWorker took ${executionTime} milliseconds to execute.`);
 
     const MstartTime = performance.now()
 
@@ -81,9 +81,9 @@ self.onmessage = function (event) {
         });
     });
 
-    const MendTime = performance.now()
-    const MexecutionTime = MendTime - MstartTime
-    console.log(`dotCoordinates.forEach in CircleWorker took ${MexecutionTime} milliseconds to execute.`);
+    // const MendTime = performance.now()
+    // const MexecutionTime = MendTime - MstartTime
+    // console.log(`dotCoordinates.forEach in CircleWorker took ${MexecutionTime} milliseconds to execute.`);
 
     // Send results back to the main thread
     self.postMessage({

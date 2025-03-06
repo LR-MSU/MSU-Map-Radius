@@ -8,7 +8,7 @@
         .county {
             fill: #f0f0f0;
             stroke: #ffffff;
-            stroke-width: 0.5px;
+            stroke-width: 0.75px;
             transition: stroke 0.3s, stroke-width 0.3s;
         }
 
@@ -20,7 +20,7 @@
         .state {
             fill: none;
             stroke: #000000;
-            stroke-width: 1px;
+            stroke-width: .5px;
         }
 
         .tooltip {
@@ -334,7 +334,7 @@
             const longitude2Name = x2.name;
             const latitude2Name = y2.name;
 
-// Extract and filter valid coordinates
+            // Extract and filter valid coordinates
             const validCircleCoordinates = summaryData
                 .map(row => ({
                     lat: row[latitudeName]?._value,
@@ -439,13 +439,13 @@
             return;
         }
 
-        const worker = new Worker('worker.js');
+        const worker = new Worker('Worker.js');
         worker.postMessage({circleGeoJSONs, michiganBoundary: michiganState});
 
         worker.onmessage = function (e) {
             if (e.data.type === 'results') {
                 console.timeEnd("calculateAreas");
-                console.log("Worker finished processing:", e.data.results);
+                console.log("Worker finished processing");
 
                 const {
                     totalCircleArea,
@@ -485,7 +485,7 @@
         console.time('447- 498 Start to termination of circle worker')
         const worker = new Worker('circleWorker.js');
 
-        console.log("Line 465", circleCoordinates.length, dotCoordinates.length)
+        // console.log("Line 465", circleCoordinates.length, dotCoordinates.length)
 
         // Send data to the worker
         worker.postMessage({circleCoordinates, dotCoordinates});
@@ -502,7 +502,7 @@
                 path: circlePath(d.lat, d.lon, radiusInKm, projection),
             }));
 
-            console.log("Line 474", circleCoordinates.length, dotCoordinates.length, circleCoordinates[0])
+            // console.log("Line 474", circleCoordinates.length, dotCoordinates.length, circleCoordinates[0])
 
             const statusColors = {
                 new: "#ff55ff",    // Green for new
@@ -573,14 +573,14 @@
             let outsideMapAreaParameter = parameters.find(param => param.name === 'OutsideMapArea');
             let finalAreaParameter = parameters.find(param => param.name === 'FinalArea');
 
-            console.log(totalAreaParameter, overlapAreaParameter, outsideMapAreaParameter, finalAreaParameter)
+            // console.log(totalAreaParameter, overlapAreaParameter, outsideMapAreaParameter, finalAreaParameter)
 
-            console.log(
+            /*console.log(
                 parseFloat(totalCircleArea),
                 parseFloat(totalIntersectionAreaBeforeUnioning),
                 parseFloat(areaOutsideMap),
                 parseFloat(finalNonOverlappingArea)
-            )
+            )*/
 
             totalAreaParameter.changeValueAsync(parseFloat(totalCircleArea.toFixed(2)));
             overlapAreaParameter.changeValueAsync(parseFloat(totalIntersectionAreaBeforeUnioning.toFixed(2)));
