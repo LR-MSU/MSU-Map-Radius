@@ -389,7 +389,7 @@
             ).values()];
 
             const uniqueCircleCoordinates = [...new Map(
-                validCircleCoordinates.map(item => [`${item.lat2},${item.lon2}`, item])
+                validCircleCoordinates.filter(item => item.closedInNew).map(item => [`${item.lat2},${item.lon2}`, item])
             ).values()];
 
             console.timeEnd("refreshData");
@@ -448,7 +448,7 @@
      * Calculates the total covered area of the circles
      */
     function calculateAreas(dotGeoJSONs, michiganState) {
-        console.log("Entered calculateAreas", dotGeoJSONs);
+        console.log("Entered calculateAreas");
         console.time("calculateAreas");
 
         if (!dotGeoJSONs || dotGeoJSONs.length === 0) {
@@ -496,7 +496,7 @@
      * Renders the circle
      */
     function renderCircles(circleCoordinates, dotCoordinates, radiusInKm) {
-        console.log("Entered rendercircles")
+        console.log("Entered render circles")
         console.time('446-453 Send data and recieve back data from worker')
         console.time('447- 498 Start to termination of circle worker')
 
@@ -514,10 +514,9 @@
 
         const statusColors = {
             new: "#ff55ff",    // Green for new
-            closed: "#59504e", // Red for closed
-            same: "#4bc6b3"    // Blue for existing
+            closed: "#59504e", // Dark grey for closed
+            same: "#4bc6b3"    // Teal for existing
         };
-        console.log("test")
 
         // Big grey circle
         mapGroup.selectAll(".circle")
@@ -530,23 +529,6 @@
             .attr("stroke", "#d3d3d3")
             .attr("stroke-width", 0.5)
             .style("pointer-events", "none");
-        console.log("test2")
-
-        // NOTE: Prior year. *NOT* the center of the grey circle
-        mapGroup.selectAll(".center-dot")
-            .data(circleCoordinates)
-            .join("circle")
-            .attr("class", "center-dot")
-            .attr("d", d => d.path)
-            // .attr("cx", d => d.projected[0])
-            // .attr("cy", d => d.projected[1])
-            .attr("r", 3)
-            .attr("fill", d => d.closedInNew ? statusColors.closed : statusColors.same)
-            .style("opacity", 0.75)
-            .attr("stroke", "#898989")
-            .attr("stroke-width", 0.5);
-        console.log("test3")
-        // TODO: Make sure this year and last year are correct in terms of dot type
 
         // Center of the grey circle
         mapGroup.selectAll(".dot")
@@ -567,7 +549,21 @@
             .attr("fill", d =>
                 d.existedInPrior ? statusColors.same : statusColors.new
             );
-        console.log("test4")
+
+        // NOTE: Prior year. *NOT* the center of the grey circle
+        mapGroup.selectAll(".center-dot")
+            .data(circleCoordinates)
+            .join("circle")
+            .attr("class", "center-dot")
+            //.attr("d", d => d.path)
+            .attr("cx", d => projection([d.lon2, d.lat2])[0])
+            .attr("cy", d => projection([d.lon2, d.lat2])[1])
+            .attr("r", 3)
+            .attr("fill", d => d.closedInNew ? statusColors.closed : statusColors.same)
+            .style("opacity", 0.75)
+            .attr("stroke", "#898989")
+            .attr("stroke-width", 0.5);
+
         console.timeEnd('Worker visual response')
         hideLoading();
     }
@@ -598,9 +594,7 @@
             overlapAreaParameter.changeValueAsync(parseFloat((totalIntersectionAreaBeforeUnioning * 0.386102).toFixed(2)));
             outsideMapAreaParameter.changeValueAsync(parseFloat((areaOutsideMap * 0.386102).toFixed(2)));
             finalAreaParameter.changeValueAsync(parseFloat((finalNonOverlappingArea * 0.386102).toFixed(2)));
-
         });
-
     }
 
     /**
