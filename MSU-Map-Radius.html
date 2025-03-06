@@ -5,6 +5,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Michigan Counties Map</title>
     <style>
+        .circle {
+            fill: #d3d3d3;
+            stroke: #d3d3d3;
+            stroke-width: 0.5;
+            opacity: 1;
+            pointer-events: none;
+        }
+
+        .dot, .center-dot {
+            stroke: #555555;
+            stroke-width: 0.5;
+            r: 3;
+        }
+
+        .center-dot {
+            opacity: 0.75;
+        }
+
+        .prior-same, .current-same {
+            fill: #59c18f;
+        }
+
+        .prior-closed {
+            fill: #ffffff;
+        }
+
+        .current-new {
+            fill: #684183;
+        }
+
         .county {
             fill: #f0f0f0;
             stroke: #ffffff;
@@ -505,65 +535,68 @@
         console.timeEnd('446-453 Send data and recieve back data from worker')
         console.time('Worker visual response')
 
-        dotCoordinates = dotCoordinates.map(d => ({
-            ...d,
-            projected: projection([d.lon, d.lat]),
-            path: circlePath(d.lat, d.lon, radiusInKm, projection),
-        }));
+// Precompute projected coordinates and paths
+        dotCoordinates = dotCoordinates.map(d => {
+            const projected = projection([d.lon, d.lat]);
+            return {
+                ...d,
+                projected,
+                path: circlePath(d.lat, d.lon, radiusInKm, projection),
+            };
+        });
 
-        // console.log("Line 474", circleCoordinates.length, dotCoordinates.length, circleCoordinates[0])
+        circleCoordinates = circleCoordinates.map(d => {
+            const projectedCenter = projection([d.lon2, d.lat2]);
+            return {
+                ...d,
+                projectedCenter,
+            };
+        });
 
-        const statusColors = {
-            new: "#684183",
-            closed: "#ffffff",
-            same: "#59c18f"
-        };
+// Filter and sort data for correct z-order
+        const priorSame = circleCoordinates.filter(d => !d.closedInNew);
+        const priorClosed = circleCoordinates.filter(d => d.closedInNew);
+        const currentSame = dotCoordinates.filter(d => d.existedInPrior);
+        const currentNew = dotCoordinates.filter(d => !d.existedInPrior);
 
-        // Big grey circle
+// 1. Draw background circles (non-closed current sites)
         mapGroup.selectAll(".circle")
-            .data(dotCoordinates.filter(d => !d.closedInNew)) // Only show non-closed
+            .data([...currentSame, ...currentNew].filter(d => !d.closedInNew))
             .join("path")
             .attr("class", "circle")
-            .attr("d", d => d.path)
-            .attr("fill", "#d3d3d3")
-            .style("opacity", 1)
-            .attr("stroke", "#d3d3d3")
-            .attr("stroke-width", 0.5)
-            .style("pointer-events", "none");
+            .attr("d", d => d.path);
 
-        // Center of the grey circle
-        mapGroup.selectAll(".dot")
-            .data(dotCoordinates, d => d.id)
-            .join(
-                enter => enter.append("circle")
-                    .attr("class", "dot")
-                    .attr("cx", d => projection([d.lon, d.lat])[0])
-                    .attr("cy", d => projection([d.lon, d.lat])[1])
-                    .attr("r", 3)
-                    .attr("stroke-width", .5)
-                    .attr("stroke", "#555555"),
-                update => update
-                    .attr("cx", d => projection([d.lon, d.lat])[0])
-                    .attr("cy", d => projection([d.lon, d.lat])[1]),
-                exit => exit.remove()
-            )
-            .attr("fill", d =>
-                d.existedInPrior ? statusColors.same : statusColors.new
-            );
-
-        // NOTE: Prior year. *NOT* the center of the grey circle
-        mapGroup.selectAll(".center-dot")
-            .data(circleCoordinates)
+// 2. Prior same sites (lowest)
+        mapGroup.selectAll(".center-dot.prior-same")
+            .data(priorSame, d => d.id)
             .join("circle")
-            .attr("class", "center-dot")
-            //.attr("d", d => d.path)
-            .attr("cx", d => projection([d.lon2, d.lat2])[0])
-            .attr("cy", d => projection([d.lon2, d.lat2])[1])
-            .attr("r", 3)
-            .attr("fill", d => d.closedInNew ? statusColors.closed : statusColors.same)
-            .style("opacity", 0.75)
-            .attr("stroke", "#555555")
-            .attr("stroke-width", 0.5);
+            .attr("class", "center-dot prior-same")
+            .attr("cx", d => d.projectedCenter[0])
+            .attr("cy", d => d.projectedCenter[1]);
+
+// 3. Current same sites
+        mapGroup.selectAll(".dot.current-same")
+            .data(currentSame, d => d.id)
+            .join("circle")
+            .attr("class", "dot current-same")
+            .attr("cx", d => d.projected[0])
+            .attr("cy", d => d.projected[1]);
+
+// 4. Prior closed sites
+        mapGroup.selectAll(".center-dot.prior-closed")
+            .data(priorClosed, d => d.id)
+            .join("circle")
+            .attr("class", "center-dot prior-closed")
+            .attr("cx", d => d.projectedCenter[0])
+            .attr("cy", d => d.projectedCenter[1]);
+
+// 5. Current new sites (topmost)
+        mapGroup.selectAll(".dot.current-new")
+            .data(currentNew, d => d.id)
+            .join("circle")
+            .attr("class", "dot current-new")
+            .attr("cx", d => d.projected[0])
+            .attr("cy", d => d.projected[1]);
 
         console.timeEnd('Worker visual response')
         hideLoading();
