@@ -320,34 +320,48 @@
             console.log("Entered refreshData");
             console.time("refreshData");
 
-            // Fetch summary data and encoding map in parallel
+// Fetch summary data and encoding map in parallel
             const [summaryData, encodingMap] = await Promise.all([
                 getSummaryDataTable(worksheet),
                 getEncodingMap(worksheet)
             ]);
 
-            const {detail, x, y, x2, y2} = encodingMap;
-
+            const { detail, x, y, x2, y2 } = encodingMap;
             const detailName = detail.name;
-
-            // New (ie: validDotCoordinates)
             const longitudeName = x.name;
             const latitudeName = y.name;
-
-            // Old (ie: validCircleCoordinates)
             const longitude2Name = x2.name;
             const latitude2Name = y2.name;
 
-            // Extract and filter valid coordinates
-            const validDotCoordinates = summaryData
-                .map(row => ({
-                    lat: row[latitudeName]?._value,
-                    lon: row[longitudeName]?._value,
-                    id: row[detailName]?._value
-                }))
-                .filter(({lat, lon}) =>
-                    !isNaN(lat) &&
-                    !isNaN(lon) &&
+// Initialize arrays and sets
+            const validDotCoordinates = [];
+            const validCircleCoordinates = [];
+            const priorIds = new Set();
+            const newIds = new Set();
+
+// Process each row once
+            for (const row of summaryData) {
+                const id = row[detailName]?._value;
+
+                // Process dot coordinates
+                const lat = row[latitudeName]?._value;
+                const lon = row[longitudeName]?._value;
+                if (isValidCoordinate(lat, lon)) {
+                    validDotCoordinates.push({ lat, lon, id });
+                    newIds.add(id);
+                }
+
+                // Process circle coordinates
+                const lat2 = row[latitude2Name]?._value;
+                const lon2 = row[longitude2Name]?._value;
+                if (isValidCoordinate(lat2, lon2)) {
+                    validCircleCoordinates.push({ lat2, lon2, id });
+                    priorIds.add(id);
+                }
+            }
+
+            function isValidCoordinate(lat, lon) {
+                return (
                     isFinite(lat) &&
                     isFinite(lon) &&
                     lat >= -90 &&
@@ -355,56 +369,44 @@
                     lon >= -180 &&
                     lon <= 180
                 );
+            }
 
-            let validCircleCoordinates = summaryData
-                .map(row => ({
-                    lat2: row[latitude2Name]?._value,
-                    lon2: row[longitude2Name]?._value,
-                    id: row[detailName]?._value
-                }))
-                .filter(({lat2, lon2}) =>
-                    !isNaN(lat2) &&
-                    !isNaN(lon2) &&
-                    isFinite(lat2) &&
-                    isFinite(lon2) &&
-                    lat2 >= -90 &&
-                    lat2 <= 90 &&
-                    lon2 >= -180 &&
-                    lon2 <= 180
-                );
-
-            const priorIds = new Set(validCircleCoordinates.map(item => item.id));
+// Add existedInPrior and closedInNew properties
             validDotCoordinates.forEach(item => {
                 item.existedInPrior = priorIds.has(item.id);
             });
-
-            const newIds = new Set(validDotCoordinates.map(item => item.id));
             validCircleCoordinates.forEach(item => {
                 item.closedInNew = !newIds.has(item.id);
             });
 
-            // 2. Create unique coordinates (existing logic)
-            const uniqueDotCoordinates = [...new Map(
-                validDotCoordinates.map(item => [`${item.lat},${item.lon}`, item])
-            ).values()];
-
-            const uniqueCircleCoordinates = [...new Map(
-                validCircleCoordinates.filter(item => item.closedInNew).map(item => [`${item.lat2},${item.lon2}`, item])
-            ).values()];
+// Create unique coordinates using efficient deduplication
+            const uniqueDotCoordinates = deduplicate(validDotCoordinates, 'lat', 'lon');
+            const uniqueCircleCoordinates = deduplicate(
+                validCircleCoordinates.filter(item => item.closedInNew),
+                'lat2',
+                'lon2'
+            );
 
             console.timeEnd("refreshData");
-            //console.log("Valid Circle Coordinates:", uniqueCircleCoordinates.length);
-
             console.time("All scripts supposedly");
 
             renderCircles(uniqueCircleCoordinates, uniqueDotCoordinates, radiusInKm);
 
-            // Generate GeoJSON circles
-            const dotGeoJSONs = uniqueDotCoordinates.map(({lat, lon}) =>
+            const dotGeoJSONs = uniqueDotCoordinates.map(({ lat, lon }) =>
                 createCircleGeoJSON(lat, lon, radiusInKm)
             );
 
             calculateAreas(dotGeoJSONs, michiganState);
+
+// Helper function for deduplication
+            function deduplicate(arr, latKey, lonKey) {
+                const map = new Map();
+                for (const item of arr) {
+                    const key = `${item[latKey]},${item[lonKey]}`;
+                    if (!map.has(key)) map.set(key, item);
+                }
+                return Array.from(map.values());
+            }
 
             console.timeEnd("All scripts supposedly");
         } catch (error) {
