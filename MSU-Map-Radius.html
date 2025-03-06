@@ -215,7 +215,6 @@
 
     // Initializes the map
     function initializeMap() {
-
         /**
          * Applies zoom behavior to the SVG element
          */
@@ -320,7 +319,7 @@
             console.log("Entered refreshData");
             console.time("refreshData");
 
-// Fetch summary data and encoding map in parallel
+            // Fetch summary data and encoding map in parallel
             const [summaryData, encodingMap] = await Promise.all([
                 getSummaryDataTable(worksheet),
                 getEncodingMap(worksheet)
@@ -333,13 +332,13 @@
             const longitude2Name = x2.name;
             const latitude2Name = y2.name;
 
-// Initialize arrays and sets
+            // Initialize arrays and sets
             const validDotCoordinates = [];
             const validCircleCoordinates = [];
             const priorIds = new Set();
             const newIds = new Set();
 
-// Process each row once
+            // Process each row once
             for (const row of summaryData) {
                 const id = row[detailName]?._value;
 
@@ -371,7 +370,7 @@
                 );
             }
 
-// Add existedInPrior and closedInNew properties
+            // Add existedInPrior and closedInNew properties
             validDotCoordinates.forEach(item => {
                 item.existedInPrior = priorIds.has(item.id);
             });
@@ -379,7 +378,7 @@
                 item.closedInNew = !newIds.has(item.id);
             });
 
-// Create unique coordinates using efficient deduplication
+            // Create unique coordinates using efficient deduplication
             const uniqueDotCoordinates = deduplicate(validDotCoordinates, 'lat', 'lon');
             const uniqueCircleCoordinates = deduplicate(
                 validCircleCoordinates.filter(item => item.closedInNew),
@@ -398,7 +397,7 @@
 
             calculateAreas(dotGeoJSONs, michiganState);
 
-// Helper function for deduplication
+            // Helper function for deduplication
             function deduplicate(arr, latKey, lonKey) {
                 const map = new Map();
                 for (const item of arr) {
