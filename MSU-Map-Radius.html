@@ -278,7 +278,7 @@
         console.time("renderCounties");
 
         // Efficiently update counties using d3.join()
-        const counties = mapGroup.selectAll(".county")
+        mapGroup.selectAll(".county")
             .data(michiganCounties, d => d.properties.GEOID) // Use GEOID as unique key
             .join(
                 enter => enter.append("path")
@@ -289,7 +289,7 @@
                     .on("mouseover", (event, d) => requestAnimationFrame(() => showTooltip(event, d)))
                     .on("mousemove", (event, d) => requestAnimationFrame(() => showTooltip(event, d)))
                     .on("mouseout", hideTooltip),
-                update => update,
+                update => update.attr("d", path),
                 exit => exit.remove()
             );
 
@@ -326,36 +326,54 @@
                 getEncodingMap(worksheet)
             ]);
 
-            const {x, y, x2, y2} = encodingMap;
+            const { detail, x, y, x2, y2 } = encodingMap;
+
+            const detailName = detail.name;
             const longitudeName = x.name;
             const latitudeName = y.name;
             const longitude2Name = x2.name;
             const latitude2Name = y2.name;
 
-            // Extract and filter valid coordinates
+// Extract and filter valid coordinates
             const validCircleCoordinates = summaryData
                 .map(row => ({
                     lat: row[latitudeName]?._value,
-                    lon: row[longitudeName]?._value
+                    lon: row[longitudeName]?._value,
+                    id: row[detailName]?._value
                 }))
-                .filter(({
-                             lat,
-                             lon
-                         }) => isFinite(lat) && isFinite(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180);
+                .filter(({ lat, lon }) =>
+                    isFinite(lat) && isFinite(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180
+                );
 
             const validDotCoordinates = summaryData
                 .map(row => ({
                     lat2: row[latitude2Name]?._value,
-                    lon2: row[longitude2Name]?._value
+                    lon2: row[longitude2Name]?._value,
+                    id: row[detailName]?._value
                 }))
-                .filter(({
-                             lat2,
-                             lon2
-                         }) => isFinite(lat2) && isFinite(lon2) && lat2 >= -90 && lat2 <= 90 && lon2 >= -180 && lon2 <= 180);
+                .filter(({ lat2, lon2 }) =>
+                    isFinite(lat2) && isFinite(lon2) && lat2 >= -90 && lat2 <= 90 && lon2 >= -180 && lon2 <= 180
+                );
 
-            // Remove duplicate coordinates efficiently
-            const uniqueCircleCoordinates = [...new Map(validCircleCoordinates.map(item => [`${item.lat},${item.lon}`, item])).values()];
-            const uniqueDotCoordinates = [...new Map(validDotCoordinates.map(item => [`${item.lat2},${item.lon2}`, item])).values()];
+            // 1. Add existence flags using Set for O(1) lookups
+            const priorIds = new Set(validCircleCoordinates.map(item => item.id));
+            validDotCoordinates.forEach(item => {
+                item.existedInPrior = priorIds.has(item.id);
+            });
+
+            const newIds = new Set(validDotCoordinates.map(item => item.id));
+            validCircleCoordinates.forEach(item => {
+                item.closedInNew = !newIds.has(item.id);
+            });
+
+            // 2. Create unique coordinates (existing logic)
+            const uniqueCircleCoordinates = [...new Map(
+                validCircleCoordinates.map(item => [`${item.lat},${item.lon}`, item])
+            ).values()];
+
+            const uniqueDotCoordinates = [...new Map(
+                validDotCoordinates.map(item => [`${item.lat2},${item.lon2}`, item])
+            ).values()];
 
             console.timeEnd("refreshData");
             console.log("Valid Circle Coordinates:", uniqueCircleCoordinates.length);
@@ -486,46 +504,53 @@
 
             console.log("Line 474", circleCoordinates.length, dotCoordinates.length, circleCoordinates[0])
 
-            // Render circles with opacity based on worker results
+            const statusColors = {
+                new: "#ff55ff",    // Green for new
+                closed: "#59504e", // Red for closed
+                same: "#4bc6b3"    // Blue for existing
+            };
+
+            const visibleDots = dotCoordinates.filter((_, i) => !hiddenDotIndices.includes(i));
+
             mapGroup.selectAll(".circle")
-                .data(circleCoordinates)
-                .enter()
-                .append("path")
+                .data(circleCoordinates.filter(d => !d.closedInNew)) // Only show non-closed
+                .join("path")
                 .attr("class", "circle")
                 .attr("d", d => d.path)
                 .attr("fill", "#d3d3d3")
-                .style("opacity", 1) // Use worker results
+                .style("opacity", 1)
                 .attr("stroke", "#d3d3d3")
                 .attr("stroke-width", 0.5)
                 .style("pointer-events", "none");
 
-            // Render center dots with opacity based on worker results
             mapGroup.selectAll(".center-dot")
                 .data(circleCoordinates)
-                .enter()
-                .append("circle")
+                .join("circle")
                 .attr("class", "center-dot")
                 .attr("cx", d => d.projected[0])
                 .attr("cy", d => d.projected[1])
                 .attr("r", 3)
-                .attr("fill", "#c671ac")
-                .style("opacity", 0.75) // Use worker results
-                .attr("stroke", "black")
+                .attr("fill", d => d.closedInNew ? statusColors.closed : statusColors.same)
+                .style("opacity", 0.75)
+                .attr("stroke", "#898989")
                 .attr("stroke-width", 0.5);
-
-
-            // Render dots with opacity based on worker results
+            // TODO: Make sure this year and last year are correct in terms of dot type
             mapGroup.selectAll(".dot")
-                .data(dotCoordinates.filter((_, i) => !hiddenDotIndices.includes(i)))
-                .enter()
-                .append("circle")
-                .attr("class", "dot")
-                .attr("cx", d => projection([d.lon2, d.lat2])[0])
-                .attr("cy", d => projection([d.lon2, d.lat2])[1])
-                .attr("r", 4)
-                .attr("stroke", "#8cc975")
-                .attr("stroke-width", 1.5)
-                .attr("fill", "transparent");
+                .data(visibleDots, d => d.id)
+                .join(
+                    enter => enter.append("circle")
+                        .attr("class", "dot")
+                        .attr("cx", d => projection([d.lon2, d.lat2])[0])
+                        .attr("cy", d => projection([d.lon2, d.lat2])[1])
+                        .attr("r", 3)
+                        .attr("stroke-width", .5)
+                        .attr("stroke", "#898989"),
+                    update => update,
+                    exit => exit.remove()
+                )
+                .attr("fill", d =>
+                    d.existedInPrior ? statusColors.same : statusColors.new
+                );
 
             console.timeEnd('Worker visual response')
             hideLoading();
@@ -561,12 +586,6 @@
             overlapAreaParameter.changeValueAsync(parseFloat(totalIntersectionAreaBeforeUnioning.toFixed(2)));
             outsideMapAreaParameter.changeValueAsync(parseFloat(areaOutsideMap.toFixed(2)));
             finalAreaParameter.changeValueAsync(parseFloat(finalNonOverlappingArea.toFixed(2)));
-            /*
-            totalAreaParameter.changeParameterValueAsync(parseFloat(totalCircleArea.toFixed(2)));
-            overlapAreaParameter.changeParameterValueAsync(parseFloat(totalIntersectionAreaBeforeUnioning.toFixed(2)));
-            outsideMapAreaParameter.changeParameterValueAsync(parseFloat(areaOutsideMap.toFixed(2)));
-            finalAreaParameter.changeParameterValueAsync(parseFloat(finalNonOverlappingArea.toFixed(2)));
-            */
 
         });
 
@@ -578,9 +597,6 @@
     function zoomed(event) {
         mapGroup.attr("transform", event.transform);
     }
-
-    // Debounce timer variable
-    let tooltipTimeout;
 
     /**
      * Display tooltip with county information.
