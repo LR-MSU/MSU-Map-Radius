@@ -783,9 +783,36 @@
         showLoading();
     }
 
+    async function Configuration() {
+        try {
+            const configUrl = `${window.location.origin}/config.html`;
+
+            // Open configuration dialog
+            await tableau.extensions.ui.displayDialogAsync(configUrl, '', {
+                width: 500,
+                height: 600
+            });
+
+            // Get new settings after configuration
+            const settings = tableau.extensions.settings.getAll();
+
+            // Update extension with new configuration
+            // await applyNewSettings(settings);
+
+        } catch (error) {
+            if (error.errorCode === tableau.ErrorCodes.DialogClosedByUser) {
+                console.log('Configuration canceled by user');
+            } else {
+                console.error('Configuration error:', error.message);
+            }
+        }
+    }
+
+
     // Initialize and load data
     (function () {
-        window.onload = tableau.extensions.initializeAsync().then(async () => {
+        window.onload = tableau.extensions.initializeAsync({ 'configure': Configuration }).then(async () => {
+            // tableau.extensions.settings.set("dd", "ww")
             let worksheet = tableau.extensions.worksheetContent.worksheet
             worksheet.addEventListener(
                 tableau.TableauEventType.SummaryDataChanged,
