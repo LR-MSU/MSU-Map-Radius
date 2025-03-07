@@ -269,11 +269,11 @@
         //showLoading();
         /**
          * Load and process the JSON file containing geographical data.
-         * This asynchronous function fetches the 'cb_201.json' file, containing
+         * This asynchronous function fetches the 'michiganGeo.json' file, containing
          * TopoJSON data for Michigan counties and state boundaries.
          */
 
-        d3.json("cb_201.json").then(data => {
+        d3.json("michiganGeo.json").then(data => {
 
             /**
              * GeoJSON features representing Michigan counties.
