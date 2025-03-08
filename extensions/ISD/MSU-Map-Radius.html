@@ -102,11 +102,11 @@
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="https://d3js.org/topojson.v3.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Turf.js/6.5.0/turf.min.js"></script>
-    <script src="tableau.extensions.1.latest.js"></script>
+    <script src="../../assets/tableau.extensions.1.latest.js"></script>
 </head>
 <body>
 <div id="loading">
-    <img src="loading.png" class="spinner" alt="Loading..."/>
+    <img src="../../assets/loading.png" class="spinner" alt="Loading..."/>
 </div>
 <svg width="100vw" height="100vh">
     <defs>
@@ -269,11 +269,11 @@
         //showLoading();
         /**
          * Load and process the JSON file containing geographical data.
-         * This asynchronous function fetches the 'michiganGeo.json' file, containing
+         * This asynchronous function fetches the 'michiganCountyGeo.json' file, containing
          * TopoJSON data for Michigan counties and state boundaries.
          */
 
-        d3.json("michiganGeo.json").then(data => {
+        d3.json("michiganCountyGeo.json").then(data => {
 
             /**
              * GeoJSON features representing Michigan counties.
