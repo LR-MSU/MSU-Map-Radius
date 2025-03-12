@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Michigan Counties Map</title>
+    <style>
+        .circle {
+            fill: #e6e6e6;
+            stroke: #e6e6e6;
+            stroke-width: 0.5;
+            opacity: 1;
+            pointer-events: none;
+        }
+
+        .dot, .center-dot {
+            stroke: #898989;
+            stroke-width: 0.5;
+            r: 3;
+        }
+
+        .center-dot {
+            opacity: 0.75;
+        }
+
+        .prior-same, .current-same {
+            fill: #59c18f;
+        }
+
+        .prior-closed {
+            fill: #ffffff;
+        }
+
+        .current-new {
+            fill: #684183;
+        }
+
+        .county {
+            fill-opacity: 0;
+            stroke: #000000;
+            stroke-width: 1px;
+            transition: stroke 0.3s, stroke-width 0.3s;
+        }
+
+        body {
+            overflow-y: hidden; /* Hide vertical scrollbar */
+            overflow-x: hidden; /* Hide horizontal scrollbar */
+        }
+
+        .state {
+            fill: none;
+            stroke: #000000;
+            stroke-width: 1px;
+        }
+
+        .tooltip {
+            position: absolute;
+            background-color: white;
+            border: 1px solid #ddd;
+            padding: 10px;
+            pointer-events: none;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            opacity: 0;
+        }
+
+        .tooltip-category {
+            color: #888;
+            font-weight: bold;
+        }
+
+        .tooltip-value {
+            color: #333;
+            font-weight: bold;
+        }
+
+        #loading {
+            position: fixed;
+            width: 100vw;
+            height: 100vh;
+            background: white;
+            z-index: 1000;
+            display: none; /* Initially hidden */
+            justify-content: center;
+            align-items: center;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .spinner {
+            animation: spin 1s linear infinite;
+        }
+    </style>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://d3js.org/topojson.v3.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Turf.js/6.5.0/turf.min.js"></script>
+    <script src="../../assets/tableau.extensions.1.latest.js"></script>
+</head>
+<body>
+<div id="loading">
+    <img src="../../assets/loading.png" class="spinner" alt="Loading..."/>
+</div>
+<svg width="100vw" height="100vh">
+    <defs>
+        <clipPath id="stateClip">
+            <path id="state-border"></path>
+        </clipPath>
+    </defs>
+    <g id="mapGroup" clip-path="url(#stateClip)">
+        <g id="dotsLayer"></g>
+        <g id="bordersLayer"></g>
+    </g>
+</svg>
+<div id="tooltip" class="tooltip"></div>
+<script>
+    // Show the loading spinner when the map starts loading
+    function showLoading() {
+        d3.select("#loading").style("display", "flex");
+    }
+
+    // Hide the loading spinner when the map has finished loading
+    function hideLoading() {
+        d3.select("#loading").style("display", "none");
+    }
+
+    const svgConst = document.querySelector('svg');
+
+    // Get the bounding rectangle of the SVG
+    const svgRect = svgConst.getBoundingClientRect();
+
+    // Set the width and height constants
+    const width = svgRect.width;
+    const height = svgRect.height;
+
+    /**
+     * SVG element for the map visualization.
+     * @type {void | Intl.LDMLPluralRule}
+     */
+    const svg = d3.select("svg");
+
+    /**
+     * Group element containing the map's components.
+     * @type {void | Intl.LDMLPluralRule}
+     */
+    const mapGroup = svg.select("#mapGroup");
+
+    /**
+     * Tooltip element for displaying information on hover.
+     * @type {void | Intl.LDMLPluralRule}
+     */
+    const tooltip = d3.select("#tooltip");
+
+    /**
+     * Mercator type projection for the map
+     * @type {*|void}
+     */
+    const projection = d3.geoMercator()
+        .scale(4000)
+        .center([-84.506, 44.182])
+        .translate([width / 2, height / 2]);
+
+    /**
+     * Path generator for creating SVG paths from GeoJSON data.
+     */
+    const path = d3.geoPath().projection(projection);
+
+    /**
+     * Defines zoom behavior for the map.
+     */
+    const zoom = d3.zoom()
+        .scaleExtent([1, 8])
+        .on("zoom", zoomed);
+
+    // Takes a page of data, which has a list of DataValues (dataTablePage.data)
+    // and a list of columns and puts the data in a list where each entry is an
+    // object that maps from field names to DataValues
+    // (example of a row being: { SUM(Sales): ..., SUM(Profit): ..., Ship Mode: ..., })
+    function convertToListOfNamedRows(dataTablePage) {
+        console.time('convertToListOfNamedRows');
+
+        const {columns, data} = dataTablePage;
+        const columnMap = columns.map(col => col.fieldName);
+
+        const rows = data.map(row =>
+            Object.fromEntries(columnMap.map((key, index) => [key, row[columns[index].index]]))
+        );
+
+        console.timeEnd('convertToListOfNamedRows');
+        return rows;
+    }
+
+
+    // Uses getVisualSpecificationAsync to build a map of encoding identifiers (specified in the .trex file)
+    // to fields that the user has placed on the encoding's shelf.
+    // Only encodings that have fields dropped on them will be part of the encodingMap.
+    async function getEncodingMap(worksheet) {
+        const visualSpec = await worksheet.getVisualSpecificationAsync();
+
+        const encodingMap = {};
+
+        if (visualSpec.activeMarksSpecificationIndex < 0) return encodingMap;
+
+        const marksCard =
+            visualSpec.marksSpecifications[visualSpec.activeMarksSpecificationIndex];
+        console.time('175-177')
+        for (const encoding of marksCard.encodings) {
+            encodingMap[encoding.id] = encoding.field;
+        }
+        console.timeEnd('175-177')
+        return encodingMap;
+    }
+
+    // Gets each page of data in the summary data and returns a list of rows of data
+    // associated with field names.
+    async function getSummaryDataTable(worksheet) {
+        console.time('getSummaryDataTable');
+
+        // Fetch the summary data using the DataTableReader
+        const dataTableReader = await worksheet.getSummaryDataReaderAsync(undefined, {ignoreSelection: true});
+
+        const rows = [];
+        const pagePromises = [];
+
+        for (let currentPage = 0; currentPage < dataTableReader.pageCount; currentPage++) {
+            pagePromises.push(dataTableReader.getPageAsync(currentPage));
+        }
+
+        const pages = await Promise.all(pagePromises);
+
+        for (const dataTablePage of pages) {
+            rows.push(...convertToListOfNamedRows(dataTablePage));
+        }
+
+        await dataTableReader.releaseAsync();
+
+        console.timeEnd('getSummaryDataTable');
+        return rows;
+    }
+
+
+    // Initializes the map
+    function initializeMap() {
+        /**
+         * Applies zoom behavior to the SVG element
+         */
+        svg.call(zoom);
+
+        /**
+         * Function to handle zoom events.
+         * @param event - The zoom event object.
+         */
+        d3.select("body").on("keydown", function (event) {
+            if (event.key === "Escape") {
+                reset();
+            }
+        });
+    }
+
+    // Load and process data
+    function loadData() {
+        //showLoading();
+        /**
+         * Load and process the JSON file containing geographical data.
+         * This asynchronous function fetches the 'michiganCountyGeo.json' file, containing
+         * TopoJSON data for Michigan counties and state boundaries.
+         */
+
+        d3.json("../../assets/michiganCountyGeo.json").then(data => {
+
+            /**
+             * GeoJSON features representing Michigan counties.
+             */
+            const michiganCounties = topojson.feature(data, data.objects.cb_2015_us_county_20m)
+                .features.filter(d => d.properties.STATEFP === "26");
+
+            /**
+             * GeoJSON feature representing the state of Michigan as a whole.
+             */
+            const michiganState = topojson.feature(data, data.objects.cb_2018_us_state_20m)
+                .features.find(d => d.properties.STATEFP === "26");
+
+            renderMap(michiganCounties, michiganState);
+
+            // Leads to lat longs and the param nonsense
+            processCircleData(michiganState);
+        });
+    }
+
+    /**
+     * Calls functions that render the map
+     */
+    function renderMap(michiganCounties, michiganState) {
+        renderCounties(michiganCounties);
+        renderStateBorder(michiganState);
+    }
+
+    /**
+     * Renders county borders
+     */
+    function renderCounties(michiganCounties) {
+        console.log("Rendering counties...");
+        console.time("renderCounties");
+
+        // Efficiently update counties using d3.join()
+        const bordersLayer = d3.select("#bordersLayer");
+
+        bordersLayer.selectAll(".county")
+            .data(michiganCounties, d => d.properties.GEOID) // Use GEOID as unique key
+            .join(
+                enter => enter.append("path")
+                    .attr("class", "county")
+                    .attr("d", path)
+                    .attr("id", d => `county-${d.properties.GEOID}`)
+                    .on("click", clickedCounty)
+                    .on("mouseover", (event, d) => requestAnimationFrame(() => showTooltip(event, d)))
+                    .on("mousemove", (event, d) => requestAnimationFrame(() => showTooltip(event, d)))
+                    .on("mouseout", hideTooltip),
+                update => update.attr("d", path),
+                exit => exit.remove()
+            );
+
+        console.timeEnd("renderCounties");
+    }
+
+    /**
+     * Selects and updates the existing state border element.
+     */
+    function renderStateBorder(michiganState) {
+        console.log("Entered renderStateBorder")
+        svg.select("#state-border")
+            .datum(michiganState)
+            .attr("d", path);
+
+        d3.select("#bordersLayer")
+            .append("path")
+            .datum(michiganState)
+            .attr("class", "state")
+            .attr("d", path)
+            .attr("id", `state-${michiganState.properties.GEOID}`);
+    }
+
+    /**
+     * Reloads and rerenders map nad calculations
+     */
+    async function refreshData(circleGeoJSONs, radiusInKm, michiganState, worksheet) {
+        try {
+            console.log("Entered refreshData");
+            console.time("refreshData");
+
+            // Fetch summary data and encoding map in parallel
+            const [summaryData, encodingMap] = await Promise.all([
+                getSummaryDataTable(worksheet),
+                getEncodingMap(worksheet)
+            ]);
+
+            const { detail, x, y, x2, y2 } = encodingMap;
+            const detailName = detail.name;
+            const longitudeName = x.name;
+            const latitudeName = y.name;
+            const longitude2Name = x2.name;
+            const latitude2Name = y2.name;
+
+            // Initialize arrays and sets
+            const validDotCoordinates = [];
+            const validCircleCoordinates = [];
+            const priorIds = new Set();
+            const newIds = new Set();
+
+            // Process each row once
+            for (const row of summaryData) {
+                const id = row[detailName]?._value;
+
+                // Process dot coordinates
+                const lat = row[latitudeName]?._value;
+                const lon = row[longitudeName]?._value;
+                if (isValidCoordinate(lat, lon)) {
+                    validDotCoordinates.push({ lat, lon, id });
+                    newIds.add(id);
+                }
+
+                // Process circle coordinates
+                const lat2 = row[latitude2Name]?._value;
+                const lon2 = row[longitude2Name]?._value;
+                if (isValidCoordinate(lat2, lon2)) {
+                    validCircleCoordinates.push({ lat2, lon2, id });
+                    priorIds.add(id);
+                }
+            }
+
+            function isValidCoordinate(lat, lon) {
+                return (
+                    isFinite(lat) &&
+                    isFinite(lon) &&
+                    lat >= -90 &&
+                    lat <= 90 &&
+                    lon >= -180 &&
+                    lon <= 180
+                );
+            }
+
+            // Add existedInPrior and closedInNew properties
+            validDotCoordinates.forEach(item => {
+                item.existedInPrior = priorIds.has(item.id);
+            });
+            validCircleCoordinates.forEach(item => {
+                item.closedInNew = !newIds.has(item.id);
+            });
+
+            // Create unique coordinates using efficient deduplication
+            const uniqueDotCoordinates = deduplicate(validDotCoordinates, 'lat', 'lon');
+            const uniqueCircleCoordinates = deduplicate(
+                validCircleCoordinates.filter(item => item.closedInNew),
+                'lat2',
+                'lon2'
+            );
+
+            console.timeEnd("refreshData");
+            console.time("All scripts supposedly");
+
+            renderCircles(uniqueCircleCoordinates, uniqueDotCoordinates, radiusInKm);
+
+            const dotGeoJSONs = uniqueDotCoordinates.map(({ lat, lon }) =>
+                createCircleGeoJSON(lat, lon, radiusInKm)
+            );
+
+            calculateAreas(dotGeoJSONs, michiganState);
+
+            // Helper function for deduplication
+            function deduplicate(arr, latKey, lonKey) {
+                const map = new Map();
+                for (const item of arr) {
+                    const key = `${item[latKey]},${item[lonKey]}`;
+                    if (!map.has(key)) map.set(key, item);
+                }
+                return Array.from(map.values());
+            }
+
+            console.timeEnd("All scripts supposedly");
+        } catch (error) {
+            console.error("Error in refreshData:", error);
+        }
+    }
+
+    /**
+     * Processes Circle data
+     */
+    function processCircleData(michiganState) {
+
+        /**
+         * Array of dictionaries with circle coordinates
+         */
+        let circleCoordinates = [
+            {lat: 0, lon: 0}
+        ];
+
+        /**
+         * Converts 20 miles to Kilometers
+         * @type {number}
+         */
+        const radiusInKm = 20 * 1.60934;
+        const circleGeoJSONs = circleCoordinates.map(circle => createCircleGeoJSON(circle.lat, circle.lon, radiusInKm));
+
+        // Leads to params
+        console.log("Leading to params")
+
+
+        let worksheet = tableau.extensions.worksheetContent.worksheet;
+        refreshData(
+            circleGeoJSONs,
+            radiusInKm,
+            michiganState,
+            worksheet
+        )
+    }
+
+    /**
+     * Calculates the total covered area of the circles
+     */
+    function calculateAreas(dotGeoJSONs, michiganState) {
+        console.log("Entered calculateAreas");
+        console.time("calculateAreas");
+
+        if (!dotGeoJSONs || dotGeoJSONs.length === 0) {
+            console.warn("No circles to process.");
+            return;
+        }
+
+        const worker = new Worker('../../assets/Worker.js');
+        worker.postMessage({dotGeoJSONs, michiganBoundary: michiganState});
+
+        worker.onmessage = function (e) {
+            if (e.data.type === 'results') {
+                console.timeEnd("calculateAreas");
+                console.log("Worker finished processing");
+
+                const {
+                    totalCircleArea,
+                    totalIntersectionAreaBeforeUnioning,
+                    areaOutsideMap,
+                    finalNonOverlappingArea
+                } = e.data.results;
+
+                console.log(`Total Circle Area: ${totalCircleArea} km²`);
+                console.log(`Overlap Area: ${totalIntersectionAreaBeforeUnioning} km²`);
+                console.log(`Area Outside Map: ${areaOutsideMap} km²`);
+                console.log(`Final Non-Overlapping Area: ${finalNonOverlappingArea} km²`);
+
+                updateTableauParameters(
+                    totalCircleArea,
+                    totalIntersectionAreaBeforeUnioning,
+                    areaOutsideMap,
+                    finalNonOverlappingArea
+                );
+            } else if (e.data.type === 'log') {
+                console.log(e.data.message);
+            }
+        };
+
+        worker.onerror = function (e) {
+            console.error("Worker error:", e.message);
+        };
+    }
+
+    /**
+     * Renders the circle
+     */
+    function renderCircles(circleCoordinates, dotCoordinates, radiusInKm) {
+        console.log("Entered render circles")
+        console.time('446-453 Send data and recieve back data from worker')
+        console.time('447- 498 Start to termination of circle worker')
+
+
+        console.timeEnd('446-453 Send data and recieve back data from worker')
+        console.time('Worker visual response')
+        const dotsLayer = d3.select("#dotsLayer");
+
+        // Precompute projected coordinates and paths
+        dotCoordinates = dotCoordinates.map(d => {
+            const projected = projection([d.lon, d.lat]);
+            return {
+                ...d,
+                projected,
+                path: circlePath(d.lat, d.lon, radiusInKm, projection),
+            };
+        });
+
+        circleCoordinates = circleCoordinates.map(d => {
+            const projectedCenter = projection([d.lon2, d.lat2]);
+            return {
+                ...d,
+                projectedCenter,
+            };
+        });
+
+        // Filter and sort data for correct z-order
+        const priorSame = circleCoordinates.filter(d => !d.closedInNew);
+        const priorClosed = circleCoordinates.filter(d => d.closedInNew);
+        const currentSame = dotCoordinates.filter(d => d.existedInPrior);
+        const currentNew = dotCoordinates.filter(d => !d.existedInPrior);
+
+        // 1. Draw background circles (non-closed current sites)
+        dotsLayer.selectAll(".circle")
+            .data([...currentSame, ...currentNew].filter(d => !d.closedInNew))
+            .join("path")
+            .attr("class", "circle")
+            .attr("d", d => d.path);
+
+        // 2. Prior same sites (lowest)
+        dotsLayer.selectAll(".center-dot.prior-same")
+            .data(priorSame, d => d.id)
+            .join("circle")
+            .attr("class", "center-dot prior-same")
+            .attr("cx", d => d.projectedCenter[0])
+            .attr("cy", d => d.projectedCenter[1]);
+
+        // 3. Current same sites
+        dotsLayer.selectAll(".dot.current-same")
+            .data(currentSame, d => d.id)
+            .join("circle")
+            .attr("class", "dot current-same")
+            .attr("cx", d => d.projected[0])
+            .attr("cy", d => d.projected[1]);
+
+        // 4. Prior closed sites
+        dotsLayer.selectAll(".center-dot.prior-closed")
+            .data(priorClosed, d => d.id)
+            .join("circle")
+            .attr("class", "center-dot prior-closed")
+            .attr("cx", d => d.projectedCenter[0])
+            .attr("cy", d => d.projectedCenter[1]);
+
+        // 5. Current new sites (topmost)
+        dotsLayer.selectAll(".dot.current-new")
+            .data(currentNew, d => d.id)
+            .join("circle")
+            .attr("class", "dot current-new")
+            .attr("cx", d => d.projected[0])
+            .attr("cy", d => d.projected[1]);
+
+        console.timeEnd('Worker visual response')
+        hideLoading();
+    }
+
+    /**
+     * Initializes extension and sets parameters to values from the calculations
+     */
+    function updateTableauParameters(totalCircleArea, totalIntersectionAreaBeforeUnioning, areaOutsideMap, finalNonOverlappingArea) {
+        console.log("Entered updateTableauParameters")
+        let worksheet = tableau.extensions.worksheetContent.worksheet;
+        worksheet.getParametersAsync().then(parameters => {
+            console.log(parameters)
+            let totalAreaParameter = parameters.find(param => param.name === 'TotalArea');
+            let overlapAreaParameter = parameters.find(param => param.name === 'OverlapArea');
+            let outsideMapAreaParameter = parameters.find(param => param.name === 'OutsideMapArea');
+            let finalAreaParameter = parameters.find(param => param.name === 'FinalArea');
+
+            // console.log(totalAreaParameter, overlapAreaParameter, outsideMapAreaParameter, finalAreaParameter)
+
+            /*console.log(
+                parseFloat(totalCircleArea),
+                parseFloat(totalIntersectionAreaBeforeUnioning),
+                parseFloat(areaOutsideMap),
+                parseFloat(finalNonOverlappingArea)
+            )*/
+
+            totalAreaParameter.changeValueAsync(parseFloat((totalCircleArea * 0.386102).toFixed(2)));
+            overlapAreaParameter.changeValueAsync(parseFloat((totalIntersectionAreaBeforeUnioning * 0.386102).toFixed(2)));
+            outsideMapAreaParameter.changeValueAsync(parseFloat((areaOutsideMap * 0.386102).toFixed(2)));
+            finalAreaParameter.changeValueAsync(parseFloat((finalNonOverlappingArea * 0.386102).toFixed(2)));
+        });
+    }
+
+    /**
+     * Applies zoom behavior
+     */
+    function zoomed(event) {
+        mapGroup.attr("transform", event.transform);
+    }
+
+    /**
+     * Display tooltip with county information.
+     * @param {Event} event - Mouse hover event.
+     * @param {Object} d - Data object for the hovered county.
+     */
+    function showTooltip(event, d) {
+        tooltip.transition()
+            .duration(200)
+            .style("opacity", 0.9);
+        tooltip.html(`
+                <span class="tooltip-category">County Name:</span> <span class="tooltip-value">${d.properties.NAME}</span><br/>
+            `)
+            .style("left", (event.pageX + 10) + "px")
+            .style("top", (event.pageY - 28) + "px");
+        const tooltipNode = tooltip.node();
+
+        /**
+         * Bounding rectangle of the tooltip element.
+         * @type {DOMRect}
+         */
+        const tooltipRect = tooltipNode.getBoundingClientRect();
+        const svgRect = svg.node().getBoundingClientRect();
+        if (tooltipRect.right > svgRect.right) {
+            tooltip.style("left", (event.pageX - tooltipRect.width - 10) + "px");
+        }
+        if (tooltipRect.bottom > svgRect.bottom) {
+            tooltip.style("top", (event.pageY - tooltipRect.height - 10) + "px");
+        }
+    }
+
+    /**
+     * Hide the tooltip.
+     */
+    function hideTooltip() {
+        tooltip.transition()
+            .duration(500)
+            .style("opacity", 0);
+    }
+
+    /**
+     * Generate a circular path based on latitude, longitude, and radius.
+     * Sourced from; https://stackoverflow.com/questions/29734397/drawing-a-fixed-length-circle-in-d3-js
+     * @param {number} lat - Latitude of the circle center.
+     * @param {number} lon - Longitude of the circle center.
+     * @param {number} radius - Radius of the circle in kilometers.
+     * @param {Function} projection - Map projection function.
+     * @returns {string|Array} - SVG path string or array of coordinates.
+     */
+    function circlePath(lat, lon, radius, projection) {
+        var intervals = 72;
+        var intervalAngle = (360 / intervals);
+        var pointsData = [];
+        for (var i = 0; i < intervals; i++) {
+            pointsData.push(getDestinationPoint(lat, lon, i * intervalAngle, radius));
+        }
+
+        if (projection) {
+            var pointsData2 = [];
+            for (var i in pointsData) {
+                pointsData2.push(projection([pointsData[i][1], pointsData[i][0]]));
+            }
+            return d3.line()(pointsData2) + "Z";
+        } else {
+            return pointsData;
+        }
+    }
+
+    /**
+     * Calculate destination point given start coordinates, bearing, and distance.
+     * Sourced from; https://stackoverflow.com/questions/29734397/drawing-a-fixed-length-circle-in-d3-js
+     * @param {number} lat - Starting latitude.
+     * @param {number} lon - Starting longitude.
+     * @param {number} brng - Bearing in degrees.
+     * @param {number} d - Distance in kilometers.
+     * @returns {number[]} - Destination coordinates [lat, lon].
+     */
+    function getDestinationPoint(lat, lon, brng, d) {
+        var R = 6371; // Earth's radius in km
+        var deg2rad = Math.PI / 180; // Conversion factor from degrees to radians
+        var rad2deg = 180 / Math.PI; // Conversion factor from radians to degrees
+
+        // Convert input angles from degrees to radians
+        brng *= deg2rad; // Convert bearing to radians
+        lat *= deg2rad; // Convert latitude to radians
+        lon *= deg2rad; // Convert longitude to radians
+
+        // Calculate the destination latitude using the haversine formula
+        var lat2 = Math.asin(
+            Math.sin(lat) * Math.cos(d / R) +
+            Math.cos(lat) * Math.sin(d / R) * Math.cos(brng)
+        );
+
+        // Calculate the destination longitude using the haversine formula
+        var lon2 = lon + Math.atan2(
+            Math.sin(brng) * Math.sin(d / R) * Math.cos(lat),
+            Math.cos(d / R) - Math.sin(lat) * Math.sin(lat2)
+        );
+
+        // Convert the calculated latitude and longitude back to degrees and return as an array
+        return [lat2 * rad2deg, lon2 * rad2deg];
+    }
+
+    /**
+     * Function to create Circle as GEO JSON
+     */
+    function createCircleGeoJSON(lat, lon, radius) {
+        return turf.circle([lon, lat], radius, {steps: 64, units: 'kilometers'});
+    }
+
+
+    /**
+     * Zoom behavior for county click, making sure no part is cut out
+     */
+    function clickedCounty(event, d) {
+        const [[x0, y0], [x1, y1]] = path.bounds(d);
+        event.stopPropagation();
+        svg.transition().duration(750).call(
+            zoom.transform,
+            d3.zoomIdentity
+                .translate(width / 2, height / 2)
+                .scale(Math.min(40, 0.5 / Math.max((x1 - x0) / width, (y1 - y0) / height)))
+                .translate(-(x0 + x1) / 2, -(y0 + y1) / 2)
+        );
+    }
+
+    /**
+     * Resets map zoom
+     */
+    function reset() {
+        svg.transition().duration(750).call(
+            zoom.transform,
+            d3.zoomIdentity,
+            d3.zoomTransform(svg.node()).invert([width / 2, height / 2])
+        );
+    }
+
+    /**
+     * Initializes the map
+     */
+    function Start() {
+        initializeMap();
+        loadData();
+        showLoading();
+    }
+
+    // Initialize and load data
+    (function () {
+        window.onload = tableau.extensions.initializeAsync().then(async () => {
+            let worksheet = tableau.extensions.worksheetContent.worksheet
+            worksheet.addEventListener(
+                tableau.TableauEventType.SummaryDataChanged,
+                Start
+            );
+
+            Start();
+        }).catch((error) => {
+            console.log(error.stack || error)
+        });
+    })();
+</script>
+</body>
+</html>
