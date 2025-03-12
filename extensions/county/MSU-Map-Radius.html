@@ -493,7 +493,7 @@
             return;
         }
 
-        const worker = new Worker('Worker.js');
+        const worker = new Worker('../../assets/Worker.js');
         worker.postMessage({dotGeoJSONs, michiganBoundary: michiganState});
 
         worker.onmessage = function (e) {
