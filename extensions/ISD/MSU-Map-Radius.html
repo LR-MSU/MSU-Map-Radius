@@ -273,19 +273,23 @@
          * TopoJSON data for Michigan counties and state boundaries.
          */
 
-        d3.json("michiganCountyGeo.json").then(data => {
+        d3.json("../../assets/michiganISDGeo.json").then(data => {
 
             /**
              * GeoJSON features representing Michigan counties.
              */
-            const michiganCounties = topojson.feature(data, data.objects.cb_2015_us_county_20m)
-                .features.filter(d => d.properties.STATEFP === "26");
+            const michiganCounties = data.features.find(d => {
+                return d.properties.NAME === "michigan_Merged";
+            })
 
             /**
              * GeoJSON feature representing the state of Michigan as a whole.
              */
-            const michiganState = topojson.feature(data, data.objects.cb_2018_us_state_20m)
-                .features.find(d => d.properties.STATEFP === "26");
+            const michiganState = data.features.filter(d => {
+                return d.properties.TYPE === "ISD";
+            });
+
+            console.log(michiganCounties, michiganState)
 
             renderMap(michiganCounties, michiganState);
 
@@ -298,8 +302,8 @@
      * Calls functions that render the map
      */
     function renderMap(michiganCounties, michiganState) {
-        renderCounties(michiganCounties);
-        renderStateBorder(michiganState);
+        renderCounties(michiganState);
+        renderStateBorder(michiganCounties);
     }
 
     /**
@@ -313,12 +317,12 @@
         const bordersLayer = d3.select("#bordersLayer");
 
         bordersLayer.selectAll(".county")
-            .data(michiganCounties, d => d.properties.GEOID) // Use GEOID as unique key
+            .data(michiganCounties, d => d.properties.OBJECTID) // Use OBJECTID as unique key
             .join(
                 enter => enter.append("path")
                     .attr("class", "county")
                     .attr("d", path)
-                    .attr("id", d => `county-${d.properties.GEOID}`)
+                    .attr("id", d => `county-${d.properties.OBJECTID}`)
                     .on("click", clickedCounty)
                     .on("mouseover", (event, d) => requestAnimationFrame(() => showTooltip(event, d)))
                     .on("mousemove", (event, d) => requestAnimationFrame(() => showTooltip(event, d)))
@@ -344,7 +348,7 @@
             .datum(michiganState)
             .attr("class", "state")
             .attr("d", path)
-            .attr("id", `state-${michiganState.properties.GEOID}`);
+            .attr("id", `state-${michiganState.properties.OBJECTID}`);
     }
 
     /**
@@ -493,7 +497,7 @@
             return;
         }
 
-        const worker = new Worker('Worker.js');
+        const worker = new Worker('../../assets/Worker.js');
         worker.postMessage({dotGeoJSONs, michiganBoundary: michiganState});
 
         worker.onmessage = function (e) {
