@@ -35,7 +35,7 @@
             fill: #684183;
         }
 
-        .county {
+        .ISD {
             fill-opacity: 0;
             stroke: #000000;
             stroke-width: 1px;
@@ -269,7 +269,7 @@
         //showLoading();
         /**
          * Load and process the JSON file containing geographical data.
-         * This asynchronous function fetches the 'michiganCountyGeo.json' file, containing
+         * This asynchronous function fetches the 'michiganISDGeo.json' file, containing
          * TopoJSON data for Michigan counties and state boundaries.
          */
 
@@ -278,14 +278,14 @@
             /**
              * GeoJSON features representing Michigan counties.
              */
-            const michiganCounties = data.features.find(d => {
+            const michiganState = data.features.find(d => {
                 return d.properties.NAME === "michigan_Merged";
             })
 
             /**
              * GeoJSON feature representing the state of Michigan as a whole.
              */
-            const michiganState = data.features.filter(d => {
+            const michiganCounties = data.features.filter(d => {
                 return d.properties.TYPE === "ISD";
             });
 
@@ -302,12 +302,12 @@
      * Calls functions that render the map
      */
     function renderMap(michiganCounties, michiganState) {
-        renderCounties(michiganState);
-        renderStateBorder(michiganCounties);
+        renderCounties(michiganCounties);
+        renderStateBorder(michiganState);
     }
 
     /**
-     * Renders county borders
+     * Renders ISD borders
      */
     function renderCounties(michiganCounties) {
         console.log("Rendering counties...");
@@ -316,14 +316,14 @@
         // Efficiently update counties using d3.join()
         const bordersLayer = d3.select("#bordersLayer");
 
-        bordersLayer.selectAll(".county")
+        bordersLayer.selectAll(".ISD")
             .data(michiganCounties, d => d.properties.OBJECTID) // Use OBJECTID as unique key
             .join(
                 enter => enter.append("path")
-                    .attr("class", "county")
+                    .attr("class", "ISD")
                     .attr("d", path)
-                    .attr("id", d => `county-${d.properties.OBJECTID}`)
-                    .on("click", clickedCounty)
+                    .attr("id", d => `ISD-${d.properties.OBJECTID}`)
+                    .on("click", clickedISD)
                     .on("mouseover", (event, d) => requestAnimationFrame(() => showTooltip(event, d)))
                     .on("mousemove", (event, d) => requestAnimationFrame(() => showTooltip(event, d)))
                     .on("mouseout", hideTooltip),
@@ -650,9 +650,9 @@
     }
 
     /**
-     * Display tooltip with county information.
+     * Display tooltip with ISD information.
      * @param {Event} event - Mouse hover event.
-     * @param {Object} d - Data object for the hovered county.
+     * @param {Object} d - Data object for the hovered ISD.
      */
     function showTooltip(event, d) {
         tooltip.transition()
@@ -760,9 +760,9 @@
 
 
     /**
-     * Zoom behavior for county click, making sure no part is cut out
+     * Zoom behavior for ISD click, making sure no part is cut out
      */
-    function clickedCounty(event, d) {
+    function clickedISD(event, d) {
         const [[x0, y0], [x1, y1]] = path.bounds(d);
         event.stopPropagation();
         svg.transition().duration(750).call(
