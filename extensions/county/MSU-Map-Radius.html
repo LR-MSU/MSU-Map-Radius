@@ -115,8 +115,9 @@
         </clipPath>
     </defs>
     <g id="mapGroup" clip-path="url(#stateClip)">
-        <g id="dotsLayer"></g>
+        <g id="circlesLayer"></g>
         <g id="bordersLayer"></g>
+        <g id="dotsLayer"></g>
     </g>
 </svg>
 <div id="tooltip" class="tooltip"></div>
@@ -541,6 +542,7 @@
         console.timeEnd('446-453 Send data and recieve back data from worker')
         console.time('Worker visual response')
         const dotsLayer = d3.select("#dotsLayer");
+        const circlesLayer = d3.select("#circlesLayer");
 
         // Precompute projected coordinates and paths
         dotCoordinates = dotCoordinates.map(d => {
@@ -567,14 +569,14 @@
         const currentNew = dotCoordinates.filter(d => !d.existedInPrior);
 
         // 1. Draw background circles (non-closed current sites)
-        dotsLayer.selectAll(".circle")
+        circlesLayer.selectAll(".circle")
             .data([...currentSame, ...currentNew].filter(d => !d.closedInNew))
             .join("path")
             .attr("class", "circle")
             .attr("d", d => d.path);
 
         // 2. Prior same sites (lowest)
-        dotsLayer.selectAll(".center-dot.prior-same")
+        circlesLayer.selectAll(".center-dot.prior-same")
             .data(priorSame, d => d.id)
             .join("circle")
             .attr("class", "center-dot prior-same")
@@ -590,7 +592,7 @@
             .attr("cy", d => d.projected[1]);
 
         // 4. Prior closed sites
-        dotsLayer.selectAll(".center-dot.prior-closed")
+        circlesLayer.selectAll(".center-dot.prior-closed")
             .data(priorClosed, d => d.id)
             .join("circle")
             .attr("class", "center-dot prior-closed")
