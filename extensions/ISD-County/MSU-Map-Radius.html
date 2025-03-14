@@ -458,7 +458,6 @@
      * Processes Circle data
      */
     function processCircleData(michiganState) {
-
         /**
          * Array of dictionaries with circle coordinates
          */
@@ -661,7 +660,7 @@
             .duration(200)
             .style("opacity", 0.9);
         tooltip.html(`
-                <span class="tooltip-category">ISD NAME:</span> <span class="tooltip-value">${d.properties.NAME}</span><br/>
+                <span class="tooltip-category">ISD NAME:</span> <span class="tooltip-value">${d.properties.ISDName}</span><br/>
             `)
             .style("left", (event.pageX + 10) + "px")
             .style("top", (event.pageY - 28) + "px");

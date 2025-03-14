@@ -2,6 +2,7 @@ import os
 import htmlmin
 import cssmin
 import rjsmin
+from bs4 import BeautifulSoup
 
 def minify_html(html_content):
     return htmlmin.minify(html_content, remove_comments=True, remove_empty_space=True)
@@ -17,10 +18,21 @@ def minify_file(file_path):
     with open(file_path, 'r', encoding='utf-8') as file:
         content = file.read()
 
-    # Minify HTML, CSS, and JS
-    minified_content = minify_html(content)
-    minified_content = minify_css(minified_content)
-    minified_content = minify_js(minified_content)
+    # Parse the HTML content using BeautifulSoup
+    soup = BeautifulSoup(content, 'html.parser')
+
+    # Minify inline CSS
+    for style in soup.find_all('style'):
+        if style.string:
+            style.string = minify_css(style.string)
+
+    # Minify inline JS
+    for script in soup.find_all('script'):
+        if script.string:
+            script.string = minify_js(script.string)
+
+    # Minify the HTML
+    minified_content = minify_html(str(soup))
 
     # Create the output file path
     base_name, ext = os.path.splitext(file_path)
@@ -34,7 +46,8 @@ def minify_file(file_path):
 
 if __name__ == "__main__":
     # Ask for the relative file path
-    file_path = input("Enter the relative path of the file to minify: ")
+    file_path = input("Enter the relative path from the project root of the file to minify: ")
+    file_path = "../" + file_path
 
     # Check if the file exists
     if not os.path.exists(file_path):
