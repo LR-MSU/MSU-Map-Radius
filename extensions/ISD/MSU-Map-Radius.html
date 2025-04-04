@@ -98,6 +98,316 @@
         .spinner {
             animation: spin 1s linear infinite;
         }
+
+        /* Context Menu Styles */
+        #contextMenu {
+            position: fixed;
+            background: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            padding: 8px;
+            display: none;
+            z-index: 1000;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            min-width: 220px;
+            font-size: 12px;
+        }
+
+        .menu-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            cursor: move;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 6px;
+        }
+
+        .menu-header h2 {
+            margin: 0;
+            font-size: 13px;
+            color: #333333;
+            font-weight: 600;
+        }
+
+        .close-button {
+            background: none;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            color: #666666;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        .close-button:hover {
+            color: #333333;
+            background-color: #f0f0f0;
+        }
+
+        /* Menu Section Styles */
+        .menu-section {
+            margin-bottom: 12px;
+            padding: 8px 12px;
+            border-radius: 4px;
+            background-color: #ffffff;
+            border: 1px solid #e0e0e0;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        .menu-section h3 {
+            margin: 0 0 8px 0;
+            font-size: 11px;
+            color: #666666;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .menu-section .menu-item {
+            margin-bottom: 8px;
+        }
+
+        .menu-section .menu-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .menu-section .menu-item label {
+            display: block;
+            font-size: 11px;
+            color: #666666;
+            margin-bottom: 4px;
+            font-weight: 500;
+        }
+
+        .menu-section .menu-item input[type="color"] {
+            width: 100%;
+            height: 24px;
+            border: 1px solid #e0e0e0;
+            border-radius: 3px;
+            padding: 2px;
+        }
+
+        .menu-section .menu-item input[type="range"] {
+            width: 100%;
+            margin: 4px 0;
+        }
+
+        .menu-section .menu-item input[type="number"] {
+            width: 80px;
+            height: 24px;
+            border: 1px solid #e0e0e0;
+            border-radius: 3px;
+            padding: 0 6px;
+            font-size: 12px;
+            margin-right: 4px;
+        }
+
+        .menu-section .menu-item .unit {
+            font-size: 11px;
+            color: #666666;
+        }
+
+        .color-picker {
+            width: 100%;
+            height: 24px;
+            margin-bottom: 6px;
+            border: 1px solid #e0e0e0;
+            border-radius: 3px;
+            padding: 2px;
+        }
+
+        .size-slider {
+            width: 100%;
+            margin: 6px 0;
+            -webkit-appearance: none;
+            height: 4px;
+            background: #e0e0e0;
+            border-radius: 2px;
+            outline: none;
+        }
+
+        .size-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 12px;
+            height: 12px;
+            background: #2c5282;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid #ffffff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+
+        .confirm-button {
+            width: 100%;
+            padding: 6px;
+            background: #2c5282;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            margin-top: 8px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .confirm-button:hover {
+            background: #2b6cb0;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .save-button, .load-button {
+            flex: 1;
+            padding: 6px;
+            border: 1px solid #e0e0e0;
+            border-radius: 3px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 12px;
+            background: #ffffff;
+        }
+
+        .save-button {
+            color: #2c5282;
+            border-color: #2c5282;
+        }
+
+        .save-button:hover {
+            background: #ebf8ff;
+        }
+
+        .load-button {
+            color: #666666;
+        }
+
+        .load-button:hover {
+            background: #f5f5f5;
+        }
+
+        .view-button {
+            width: 100%;
+            padding: 6px;
+            border: 1px solid #e0e0e0;
+            border-radius: 3px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 12px;
+            background: #ffffff;
+            color: #666666;
+            margin-top: 6px;
+        }
+
+        .view-button:hover {
+            background: #f5f5f5;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #ffffff;
+            padding: 16px;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1001;
+            min-width: 300px;
+            max-width: 400px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 14px;
+            color: #333333;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: #666666;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        .modal-close:hover {
+            color: #333333;
+            background-color: #f0f0f0;
+        }
+
+        .settings-list {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .settings-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e0e0e0;
+            font-size: 12px;
+        }
+
+        .settings-item:last-child {
+            border-bottom: none;
+        }
+
+        .settings-label {
+            font-weight: 500;
+            color: #666666;
+        }
+
+        .settings-value {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #333333;
+        }
+
+        .color-preview {
+            width: 16px;
+            height: 16px;
+            border: 1px solid #e0e0e0;
+            border-radius: 2px;
+        }
+
+        .radius-input {
+            width: 80px;
+            height: 24px;
+            border: 1px solid #e0e0e0;
+            border-radius: 3px;
+            padding: 0 6px;
+            font-size: 12px;
+            margin-right: 4px;
+        }
+
+        .radius-unit {
+            font-size: 12px;
+            color: #666666;
+        }
     </style>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="https://d3js.org/topojson.v3.min.js"></script>
@@ -121,6 +431,92 @@
     </g>
 </svg>
 <div id="tooltip" class="tooltip"></div>
+<div id="contextMenu">
+    <div class="menu-header">
+        <h2>Map Settings</h2>
+        <button class="close-button">&times;</button>
+    </div>
+
+    <div class="menu-section">
+        <h3>Circles</h3>
+        <div class="menu-item">
+            <label>Color</label>
+            <input type="color" class="color-picker" id="circleColor" value="#e6e6e6">
+        </div>
+        <div class="menu-item">
+            <label>Range from Center</label>
+            <input type="number" class="radius-input" id="radiusInput" min="1" max="100" value="20" step="1">
+            <span class="unit">miles</span>
+        </div>
+    </div>
+
+    <div class="menu-section">
+        <h3>Dots</h3>
+        <div class="menu-item">
+            <label>Size</label>
+            <input type="range" class="size-slider" id="dotSize" min="1" max="10" value="3">
+        </div>
+        <div class="menu-item">
+            <label>Prior Year Only</label>
+            <input type="color" class="color-picker" id="priorClosedDotColor" value="#ffffff">
+        </div>
+        <div class="menu-item">
+            <label>Both Years</label>
+            <input type="color" class="color-picker" id="priorSameDotColor" value="#59c18f">
+        </div>
+        <div class="menu-item">
+            <label>New This Year</label>
+            <input type="color" class="color-picker" id="currentNewDotColor" value="#684183">
+        </div>
+    </div>
+
+    <button class="confirm-button" id="confirmStyles">Confirm Changes</button>
+    <div class="button-group">
+        <button class="save-button" id="saveSettings">Save Settings</button>
+        <button class="load-button" id="loadSettings">Load Settings</button>
+    </div>
+    <button class="view-button" id="viewSettings">View Saved Settings</button>
+</div>
+<div id="settingsModal" class="modal">
+    <div class="modal-header">
+        <h2>Saved Settings</h2>
+        <button class="modal-close">&times;</button>
+    </div>
+    <ul class="settings-list">
+        <li class="settings-item">
+            <span class="settings-label">Circle Color</span>
+            <span class="settings-value">
+                <div class="color-preview" id="savedCircleColor"></div>
+                <span id="savedCircleColorValue"></span>
+            </span>
+        </li>
+        <li class="settings-item">
+            <span class="settings-label">Prior Year Only Dots</span>
+            <span class="settings-value">
+                <div class="color-preview" id="savedPriorClosedDotColor"></div>
+                <span id="savedPriorClosedDotColorValue"></span>
+            </span>
+        </li>
+        <li class="settings-item">
+            <span class="settings-label">Both Years Dots</span>
+            <span class="settings-value">
+                <div class="color-preview" id="savedPriorSameDotColor"></div>
+                <span id="savedPriorSameDotColorValue"></span>
+            </span>
+        </li>
+        <li class="settings-item">
+            <span class="settings-label">New This Year Dots</span>
+            <span class="settings-value">
+                <div class="color-preview" id="savedCurrentNewDotColor"></div>
+                <span id="savedCurrentNewDotColorValue"></span>
+            </span>
+        </li>
+        <li class="settings-item">
+            <span class="settings-label">Dot Size</span>
+            <span class="settings-value" id="savedDotSize"></span>
+        </li>
+    </ul>
+</div>
 <script>
     // Show the loading spinner when the map starts loading
     function showLoading() {
@@ -158,6 +554,203 @@
      * @type {void | Intl.LDMLPluralRule}
      */
     const tooltip = d3.select("#tooltip");
+
+    // Customization state
+    let customizationState = {
+        circleColor: "#e6e6e6",
+        priorClosedDotColor: "#ffffff",  // White dots (existed last year, not this year)
+        priorSameDotColor: "#59c18f",    // Green dots (existed in both years)
+        currentNewDotColor: "#684183",   // Purple dots (new this year)
+        dotSize: 3,
+        radiusInMiles: 20
+    };
+
+    // Saved state - will track last saved settings
+    let savedState = {
+        circleColor: "#e6e6e6",
+        priorClosedDotColor: "#ffffff",
+        priorSameDotColor: "#59c18f",
+        currentNewDotColor: "#684183",
+        dotSize: 3,
+        radiusInMiles: 20
+    };
+
+    // Context menu elements
+    const contextMenu = d3.select("#contextMenu");
+    const circleColorPicker = d3.select("#circleColor");
+    const priorClosedDotColorPicker = d3.select("#priorClosedDotColor");
+    const priorSameDotColorPicker = d3.select("#priorSameDotColor");
+    const currentNewDotColorPicker = d3.select("#currentNewDotColor");
+    const dotSizeSlider = d3.select("#dotSize");
+    const radiusInput = d3.select("#radiusInput");
+    const confirmButton = d3.select("#confirmStyles");
+    const closeButton = d3.select(".close-button");
+    const menuHeader = d3.select(".menu-header");
+    const saveButton = d3.select("#saveSettings");
+    const loadButton = d3.select("#loadSettings");
+    const viewButton = d3.select("#viewSettings");
+    const settingsModal = d3.select("#settingsModal");
+    const modalCloseButton = d3.select(".modal-close");
+
+    // Function to save settings to Tableau workbook
+    async function saveSettingsToTableau() {
+        try {
+            await tableau.extensions.settings.saveAsync();
+            console.log("Settings saved successfully");
+        } catch (error) {
+            console.error("Error saving settings:", error);
+        }
+    }
+
+    // Function to save current customization state
+    async function saveSettings() {
+        try {
+            // Update savedState with current values
+            Object.keys(customizationState).forEach(key => {
+                savedState[key] = customizationState[key];
+            });
+
+            // Save each setting individually to Tableau
+            Object.entries(savedState).forEach(([key, value]) => {
+                tableau.extensions.settings.set(key, value.toString());
+            });
+
+            // Save to workbook
+            await saveSettingsToTableau();
+        } catch (error) {
+            console.error("Error saving settings:", error);
+        }
+    }
+
+    // Function to load saved settings
+    function loadSettings() {
+        try {
+            // First load from Tableau settings into savedState if they exist
+            Object.keys(savedState).forEach(key => {
+                const tableauValue = tableau.extensions.settings.get(key);
+                if (tableauValue) {
+                    savedState[key] = key.includes('Size') ? parseInt(tableauValue) : tableauValue;
+                }
+            });
+
+            // Then update customizationState from savedState
+            Object.keys(customizationState).forEach(key => {
+                customizationState[key] = savedState[key];
+            });
+
+            // Update UI elements
+            circleColorPicker.property('value', customizationState.circleColor);
+            priorClosedDotColorPicker.property('value', customizationState.priorClosedDotColor);
+            priorSameDotColorPicker.property('value', customizationState.priorSameDotColor);
+            currentNewDotColorPicker.property('value', customizationState.currentNewDotColor);
+            dotSizeSlider.property('value', customizationState.dotSize);
+            radiusInput.property('value', customizationState.radiusInMiles);
+
+            // Re-render with loaded settings
+            if (window.currentCircleCoordinates && window.currentDotCoordinates && window.currentRadiusInKm) {
+                renderCircles(window.currentCircleCoordinates, window.currentDotCoordinates, window.currentRadiusInKm);
+            }
+        } catch (error) {
+            console.error("Error loading settings:", error);
+        }
+    }
+
+    // Add event listeners for save and load buttons
+    saveButton.on("click", saveSettings);
+    loadButton.on("click", loadSettings);
+
+    // Make context menu draggable
+    let isDragging = false;
+    let dragOffset = { x: 0, y: 0 };
+
+    menuHeader.on("mousedown", function(event) {
+        isDragging = true;
+        const menuRect = contextMenu.node().getBoundingClientRect();
+        dragOffset.x = event.clientX - menuRect.left;
+        dragOffset.y = event.clientY - menuRect.top;
+        event.preventDefault(); // Prevents text selection during drag
+    });
+
+    d3.select("body").on("mousemove", function(event) {
+        if (isDragging) {
+            contextMenu
+                .style("left", (event.clientX - dragOffset.x) + "px")
+                .style("top", (event.clientY - dragOffset.y) + "px");
+        }
+    });
+
+    d3.select("body").on("mouseup", function() {
+        isDragging = false;
+    });
+
+    // Close context menu when close button is clicked
+    closeButton.on("click", function() {
+        contextMenu.style("display", "none");
+    });
+
+    // Close context menu when clicking outside
+    d3.select("body").on("click", function(event) {
+        const target = event.target;
+        const isContextMenu = contextMenu.node().contains(target);
+
+        if (!isContextMenu) {
+            contextMenu.style("display", "none");
+        }
+    });
+
+    // Remove right-click event listener from the map
+    svg.on("contextmenu", null);
+
+    // Update customization state when controls change
+    circleColorPicker.on("change", function() {
+        customizationState.circleColor = this.value;
+    });
+
+    priorClosedDotColorPicker.on("change", function() {
+        customizationState.priorClosedDotColor = this.value;
+    });
+
+    priorSameDotColorPicker.on("change", function() {
+        customizationState.priorSameDotColor = this.value;
+    });
+
+    currentNewDotColorPicker.on("change", function() {
+        customizationState.currentNewDotColor = this.value;
+    });
+
+    dotSizeSlider.on("input", function() {
+        customizationState.dotSize = this.value;
+    });
+
+    radiusInput.on("change", function() {
+        const value = parseInt(this.value);
+        if (value >= 1 && value <= 100) {
+            customizationState.radiusInMiles = value;
+        } else {
+            // Reset to previous value if invalid
+            this.value = customizationState.radiusInMiles;
+        }
+    });
+
+    // Apply changes when confirm button is clicked
+    confirmButton.on("click", function() {
+        // Convert miles to kilometers for calculations
+        const radiusInKm = customizationState.radiusInMiles * 1.60934;
+
+        // Apply style changes and recalculate areas
+        if (window.currentCircleCoordinates && window.currentDotCoordinates) {
+            renderCircles(window.currentCircleCoordinates, window.currentDotCoordinates, radiusInKm);
+
+            // Recalculate areas with new radius
+            const dotGeoJSONs = window.currentDotCoordinates.map(({ lat, lon }) =>
+                createCircleGeoJSON(lat, lon, radiusInKm)
+            );
+
+            // Get the state boundary from the current data
+            const michiganState = d3.select("#state-border").datum();
+            calculateAreas(dotGeoJSONs, michiganState);
+        }
+    });
 
     /**
      * Mercator type projection for the map
@@ -456,7 +1049,6 @@
      * Processes Circle data
      */
     function processCircleData(michiganState) {
-
         /**
          * Array of dictionaries with circle coordinates
          */
@@ -464,16 +1056,13 @@
             {lat: 0, lon: 0}
         ];
 
-        /**
-         * Converts 20 miles to Kilometers
-         * @type {number}
-         */
-        const radiusInKm = 20 * 1.60934;
+        // Use saved radius or default to 20 miles
+        const radiusInMiles = customizationState.radiusInMiles;
+        const radiusInKm = radiusInMiles * 1.60934;
         const circleGeoJSONs = circleCoordinates.map(circle => createCircleGeoJSON(circle.lat, circle.lon, radiusInKm));
 
         // Leads to params
         console.log("Leading to params")
-
 
         let worksheet = tableau.extensions.worksheetContent.worksheet;
         refreshData(
@@ -540,6 +1129,10 @@
         console.time('446-453 Send data and recieve back data from worker')
         console.time('447- 498 Start to termination of circle worker')
 
+        // Store current coordinates for re-rendering
+        window.currentCircleCoordinates = circleCoordinates;
+        window.currentDotCoordinates = dotCoordinates;
+        window.currentRadiusInKm = radiusInKm;
 
         console.timeEnd('446-453 Send data and recieve back data from worker')
         console.time('Worker visual response')
@@ -570,14 +1163,14 @@
         const currentSame = dotCoordinates.filter(d => d.existedInPrior);
         const currentNew = dotCoordinates.filter(d => !d.existedInPrior);
 
-        console.log(circlesLayer)
-
         // 1. Draw background circles (non-closed current sites)
         circlesLayer.selectAll(".circle")
             .data([...currentSame, ...currentNew].filter(d => !d.closedInNew))
             .join("path")
             .attr("class", "circle")
-            .attr("d", d => d.path);
+            .attr("d", d => d.path)
+            .style("fill", customizationState.circleColor)
+            .style("stroke", customizationState.circleColor);
 
         // 2. Prior same sites (lowest)
         circlesLayer.selectAll(".center-dot.prior-same")
@@ -585,7 +1178,9 @@
             .join("circle")
             .attr("class", "center-dot prior-same")
             .attr("cx", d => d.projectedCenter[0])
-            .attr("cy", d => d.projectedCenter[1]);
+            .attr("cy", d => d.projectedCenter[1])
+            .style("fill", customizationState.priorSameDotColor)
+            .style("r", customizationState.dotSize);
 
         // 3. Current same sites
         dotsLayer.selectAll(".dot.current-same")
@@ -593,7 +1188,9 @@
             .join("circle")
             .attr("class", "dot current-same")
             .attr("cx", d => d.projected[0])
-            .attr("cy", d => d.projected[1]);
+            .attr("cy", d => d.projected[1])
+            .style("fill", customizationState.priorSameDotColor)
+            .style("r", customizationState.dotSize);
 
         // 4. Prior closed sites
         circlesLayer.selectAll(".center-dot.prior-closed")
@@ -601,7 +1198,9 @@
             .join("circle")
             .attr("class", "center-dot prior-closed")
             .attr("cx", d => d.projectedCenter[0])
-            .attr("cy", d => d.projectedCenter[1]);
+            .attr("cy", d => d.projectedCenter[1])
+            .style("fill", customizationState.priorClosedDotColor)
+            .style("r", customizationState.dotSize);
 
         // 5. Current new sites (topmost)
         dotsLayer.selectAll(".dot.current-new")
@@ -609,7 +1208,9 @@
             .join("circle")
             .attr("class", "dot current-new")
             .attr("cx", d => d.projected[0])
-            .attr("cy", d => d.projected[1]);
+            .attr("cy", d => d.projected[1])
+            .style("fill", customizationState.currentNewDotColor)
+            .style("r", customizationState.dotSize);
 
         console.timeEnd('Worker visual response')
         hideLoading();
@@ -788,17 +1389,42 @@
     }
 
     /**
+     * Checks if there are any saved settings in Tableau
+     * @returns {boolean} - True if any settings are saved, false otherwise
+     */
+    function hasSavedSettings() {
+        return Object.keys(savedState).some(key =>
+            tableau.extensions.settings.get(key) !== undefined
+        );
+    }
+
+    /**
      * Initializes the map
      */
     function Start() {
         initializeMap();
         loadData();
         showLoading();
+
+        // Check for and load saved settings after a brief delay to ensure initial rendering is complete
+        setTimeout(() => {
+            if (hasSavedSettings()) {
+                console.log("Found saved settings, applying automatically...");
+                // Load from Tableau to savedState first
+                Object.keys(savedState).forEach(key => {
+                    const tableauValue = tableau.extensions.settings.get(key);
+                    if (tableauValue) {
+                        savedState[key] = key.includes('Size') ? parseInt(tableauValue) : tableauValue;
+                    }
+                });
+                loadSettings();
+            }
+        }, 1000); // 1 second delay to ensure initial rendering is complete
     }
 
     // Initialize and load data
     (function () {
-        window.onload = tableau.extensions.initializeAsync().then(async () => {
+        window.onload = tableau.extensions.initializeAsync({'configure': showSettingsMenu}).then(async () => {
             let worksheet = tableau.extensions.worksheetContent.worksheet
             worksheet.addEventListener(
                 tableau.TableauEventType.SummaryDataChanged,
@@ -810,6 +1436,63 @@
             console.log(error.stack || error)
         });
     })();
+
+    // Function to display the settings menu when Configure is clicked from the context menu
+    function showSettingsMenu() {
+        // Center the menu on the screen
+        const menuWidth = 220; // Minimum width from CSS
+        const menuHeight = 350; // Approximate height based on content
+
+        contextMenu
+            .style("left", (window.innerWidth / 2 - menuWidth / 2) + "px")
+            .style("top", (window.innerHeight / 2 - menuHeight / 2) + "px")
+            .style("display", "block");
+    }
+
+    // Function to update the settings modal with current saved values
+    function updateSettingsModal() {
+        try {
+            // Update each setting display using savedState
+            Object.keys(savedState).forEach(key => {
+                const savedValue = savedState[key];
+                if (key.includes('Color')) {
+                    // Update color preview and value
+                    d3.select(`#saved${key.charAt(0).toUpperCase() + key.slice(1)}`)
+                        .style('background-color', savedValue);
+                    d3.select(`#saved${key.charAt(0).toUpperCase() + key.slice(1)}Value`)
+                        .text(savedValue);
+                } else if (key === 'dotSize') {
+                    // Update dot size value
+                    d3.select(`#saved${key.charAt(0).toUpperCase() + key.slice(1)}`)
+                        .text(savedValue);
+                }
+            });
+        } catch (error) {
+            console.error("Error updating settings modal:", error);
+        }
+    }
+
+    // Show settings modal
+    viewButton.on("click", function() {
+        updateSettingsModal();
+        settingsModal.style("display", "block");
+    });
+
+    // Close settings modal
+    modalCloseButton.on("click", function() {
+        settingsModal.style("display", "none");
+    });
+
+    // Close modal when clicking outside
+    d3.select("body").on("click", function(event) {
+        const target = event.target;
+        const isModal = settingsModal.node().contains(target);
+        const isViewButton = viewButton.node().contains(target);
+
+        if (!isModal && !isViewButton && settingsModal.style("display") !== "none") {
+            settingsModal.style("display", "none");
+        }
+    });
 </script>
 </body>
 </html>
