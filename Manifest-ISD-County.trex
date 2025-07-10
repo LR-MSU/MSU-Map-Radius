@@ -12,6 +12,9 @@
       <!-- Prod: https://lr-msu.github.io/MSU-Map-Radius/extensions/ISD-County/MSU-Map-Radius.min.html -->
     </source-location>
     <icon/>
+    <context-menu>
+        <configure-context-menu-item />
+    </context-menu>
     <encoding id="x">
       <display-name>New X</display-name>
       <data-spec>
